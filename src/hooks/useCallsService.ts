@@ -26,8 +26,9 @@ export const useCallsService = () => {
     queryKey: ['calls', 'active'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
-          .from('calls')
+        // Using type assertion to bypass TS errors until Supabase tables are properly defined
+        const { data, error } = await (supabase
+          .from('calls') as any)
           .select('*')
           .eq('status', 'active');
 
@@ -49,8 +50,9 @@ export const useCallsService = () => {
     queryKey: ['calls', 'metrics'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
-          .from('quality_metrics')
+        // Using type assertion to bypass TS errors until Supabase tables are properly defined
+        const { data, error } = await (supabase
+          .from('quality_metrics') as any)
           .select('*')
           .order('timestamp', { ascending: false })
           .limit(100);
@@ -73,8 +75,9 @@ export const useCallsService = () => {
     queryKey: ['calls', 'completed'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
-          .from('calls')
+        // Using type assertion to bypass TS errors until Supabase tables are properly defined
+        const { data, error } = await (supabase
+          .from('calls') as any)
           .select('*')
           .eq('status', 'completed')
           .order('end_time', { ascending: false })
@@ -97,8 +100,9 @@ export const useCallsService = () => {
   const startCall = useMutation({
     mutationFn: async (callData: Partial<Call>) => {
       try {
-        const { data, error } = await supabase
-          .from('calls')
+        // Using type assertion to bypass TS errors until Supabase tables are properly defined
+        const { data, error } = await (supabase
+          .from('calls') as any)
           .insert([{ ...callData, status: 'active' }])
           .select()
           .single();
@@ -127,8 +131,9 @@ export const useCallsService = () => {
   const endCall = useMutation({
     mutationFn: async (callId: string) => {
       try {
-        const { data, error } = await supabase
-          .from('calls')
+        // Using type assertion to bypass TS errors until Supabase tables are properly defined
+        const { data, error } = await (supabase
+          .from('calls') as any)
           .update({
             status: 'completed',
             end_time: new Date().toISOString(),
@@ -162,8 +167,9 @@ export const useCallsService = () => {
   const abandonCall = useMutation({
     mutationFn: async (callId: string) => {
       try {
-        const { data, error } = await supabase
-          .from('calls')
+        // Using type assertion to bypass TS errors until Supabase tables are properly defined
+        const { data, error } = await (supabase
+          .from('calls') as any)
           .update({
             status: 'abandoned',
             end_time: new Date().toISOString()

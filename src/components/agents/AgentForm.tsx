@@ -59,17 +59,21 @@ const AgentForm: React.FC<AgentFormProps> = ({ open, onClose, editingAgent }) =>
   });
 
   const onSubmit = async (values: AgentFormValues) => {
-    await createAgent({
-      name: values.name,
-      type: values.type,
-      status: values.status,
-      specialization: values.specialization || null,
-      voice_id: values.voice_id || null,
-      prompt_template: values.prompt_template || null,
-    });
-    
-    onClose();
-    form.reset();
+    try {
+      await createAgent.mutateAsync({
+        name: values.name,
+        type: values.type,
+        status: values.status,
+        specialization: values.specialization || null,
+        voice_id: values.voice_id || null,
+        prompt_template: values.prompt_template || null,
+      });
+      
+      onClose();
+      form.reset();
+    } catch (error) {
+      console.error('Error creating agent:', error);
+    }
   };
 
   return (

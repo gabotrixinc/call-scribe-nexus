@@ -39,7 +39,7 @@ const CallMaker: React.FC = () => {
     defaultValues: {
       phoneNumber: '',
       callerName: '',
-      agentId: '',
+      agentId: 'auto',
     }
   });
 
@@ -58,7 +58,7 @@ const CallMaker: React.FC = () => {
       await startCall.mutateAsync({
         caller_number: data.phoneNumber,
         caller_name: data.callerName || null,
-        ai_agent_id: data.agentId || null,
+        ai_agent_id: data.agentId === 'auto' ? null : data.agentId,
         start_time: new Date().toISOString(),
         status: 'active',
       });
@@ -127,7 +127,7 @@ const CallMaker: React.FC = () => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Auto-asignar</SelectItem>
+                      <SelectItem value="auto">Auto-asignar</SelectItem>
                       {availableAgents.map(agent => (
                         <SelectItem key={agent.id} value={agent.id}>
                           {agent.name} ({agent.type === 'ai' ? 'IA' : 'Humano'})
