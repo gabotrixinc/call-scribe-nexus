@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Card,
@@ -62,7 +61,13 @@ const CallQualityChart: React.FC = () => {
                 dataKey="metric"
                 tickLine={false}
                 axisLine={false}
-                tick={{ fill: 'hsl(var(--muted-foreground))', angle: -35, textAnchor: 'end', fontSize: 12 }}
+                tick={{ 
+                  fill: 'hsl(var(--muted-foreground))',
+                  textAnchor: 'end',
+                  fontSize: 12,
+                  dy: 10,
+                  transform: 'rotate(-35)'
+                }}
                 height={70}
               />
               <YAxis

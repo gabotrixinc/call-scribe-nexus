@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import {
   Phone,
   PhoneCall,
   Users,
-  Chart,
+  BarChart,
   Settings,
   MessageSquare
 } from 'lucide-react';
@@ -20,7 +19,7 @@ const Sidebar: React.FC = () => {
     { 
       name: 'Dashboard', 
       path: '/', 
-      icon: <Chart className="w-5 h-5" /> 
+      icon: <BarChart className="w-5 h-5" /> 
     },
     { 
       name: 'Call Management', 
