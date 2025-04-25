@@ -27,7 +27,7 @@ export const useCallsService = () => {
       const { data, error } = await supabase
         .from('calls')
         .select('*')
-        .eq('status', 'active');
+        .eq('status', 'active') as any;
 
       if (error) throw error;
       return data as Call[];
@@ -41,7 +41,7 @@ export const useCallsService = () => {
         .from('quality_metrics')
         .select('*')
         .order('timestamp', { ascending: false })
-        .limit(100);
+        .limit(100) as any;
 
       if (error) throw error;
       return data;
@@ -52,9 +52,9 @@ export const useCallsService = () => {
     mutationFn: async (callData: Partial<Call>) => {
       const { data, error } = await supabase
         .from('calls')
-        .insert([{ ...callData, status: 'active' }])
+        .insert([{ ...callData, status: 'active' }] as any)
         .select()
-        .single();
+        .single() as any;
 
       if (error) throw error;
       return data;

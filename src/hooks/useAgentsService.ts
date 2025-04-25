@@ -21,7 +21,7 @@ export const useAgentsService = () => {
       const { data, error } = await supabase
         .from('agents')
         .select('*')
-        .order('name');
+        .order('name') as any;
 
       if (error) throw error;
       return data as Agent[];
@@ -32,10 +32,10 @@ export const useAgentsService = () => {
     mutationFn: async ({ agentId, status }: { agentId: string; status: Agent['status'] }) => {
       const { data, error } = await supabase
         .from('agents')
-        .update({ status })
+        .update({ status } as any)
         .eq('id', agentId)
         .select()
-        .single();
+        .single() as any;
 
       if (error) throw error;
       return data;

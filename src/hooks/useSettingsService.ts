@@ -30,7 +30,7 @@ export const useSettingsService = () => {
         .from('settings')
         .select('*')
         .eq('id', 'global')
-        .single();
+        .single() as any;
 
       if (error) throw error;
       return data as Settings;
@@ -41,10 +41,10 @@ export const useSettingsService = () => {
     mutationFn: async (newSettings: Partial<Settings>) => {
       const { data, error } = await supabase
         .from('settings')
-        .update(newSettings)
+        .update(newSettings as any)
         .eq('id', 'global')
         .select()
-        .single();
+        .single() as any;
 
       if (error) throw error;
       return data;
