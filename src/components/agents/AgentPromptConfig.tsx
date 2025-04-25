@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { 
   Dialog, 
@@ -97,8 +96,8 @@ const AgentPromptConfig: React.FC<AgentPromptConfigProps> = ({
   
   const onSave = async (data: PromptConfigFormData) => {
     try {
-      const { error } = await supabase
-        .from('agents')
+      const { error } = await (supabase
+        .from('agents') as any)
         .update({
           prompt_template: data.prompt_template,
           voice_id: data.voice_id

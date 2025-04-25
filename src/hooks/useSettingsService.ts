@@ -28,9 +28,8 @@ export const useSettingsService = () => {
     queryKey: ['settings'],
     queryFn: async () => {
       try {
-        // Using type assertion to bypass TS errors until Supabase tables are properly defined
-        const { data, error } = await (supabase
-          .from('settings') as any)
+        const { data, error } = await supabase
+          .from('settings') as any
           .select('*')
           .eq('id', 'global')
           .single();
@@ -52,9 +51,8 @@ export const useSettingsService = () => {
   const updateSettings = useMutation({
     mutationFn: async (newSettings: Partial<Settings>) => {
       try {
-        // Using type assertion to bypass TS errors until Supabase tables are properly defined
-        const { data, error } = await (supabase
-          .from('settings') as any)
+        const { data, error } = await supabase
+          .from('settings') as any
           .update(newSettings)
           .eq('id', 'global')
           .select()

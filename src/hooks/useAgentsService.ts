@@ -20,8 +20,8 @@ export const useAgentsService = () => {
     queryKey: ['agents'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
-          .from('agents')
+        const { data, error } = await (supabase
+          .from('agents') as any)
           .select('*')
           .order('name');
 
@@ -42,8 +42,8 @@ export const useAgentsService = () => {
   const updateAgentStatus = useMutation({
     mutationFn: async ({ agentId, status }: { agentId: string; status: Agent['status'] }) => {
       try {
-        const { data, error } = await supabase
-          .from('agents')
+        const { data, error } = await (supabase
+          .from('agents') as any)
           .update({ status })
           .eq('id', agentId)
           .select()
@@ -73,8 +73,8 @@ export const useAgentsService = () => {
   const createAgent = useMutation({
     mutationFn: async (newAgent: Omit<Agent, 'id'>) => {
       try {
-        const { data, error } = await supabase
-          .from('agents')
+        const { data, error } = await (supabase
+          .from('agents') as any)
           .insert([newAgent])
           .select()
           .single();
@@ -103,8 +103,8 @@ export const useAgentsService = () => {
   const deleteAgent = useMutation({
     mutationFn: async (agentId: string) => {
       try {
-        const { error } = await supabase
-          .from('agents')
+        const { error } = await (supabase
+          .from('agents') as any)
           .delete()
           .eq('id', agentId);
 

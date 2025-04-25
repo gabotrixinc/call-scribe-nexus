@@ -1,305 +1,204 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
-  DialogTitle,
-  DialogDescription 
+  DialogTitle, 
+  DialogDescription,
+  DialogFooter
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { Phone, User, MessageSquare, Download, ExternalLink } from "lucide-react";
-import { supabase } from '@/integrations/supabase/client';
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { Call } from '@/hooks/useCallsService';
+import { useForm } from 'react-hook-form';
+import { useAgentsService } from '@/hooks/useAgentsService';
+import { supabase } from '@/integrations/supabase/client';
 
-interface Message {
-  id: number;
-  role: 'agent' | 'customer';
-  content: string;
-  timestamp: string;
-}
-
-interface ConversationDetailProps {
+interface AgentPromptConfigProps {
   open: boolean;
   onClose: () => void;
-  conversationId: string;
+  agentId: string;
 }
 
-const ConversationDetail: React.FC<ConversationDetailProps> = ({
+interface PromptConfigFormData {
+  prompt_template: string;
+  voice_id: string;
+  example_input: string;
+  example_output?: string;
+}
+
+const AgentPromptConfig: React.FC<AgentPromptConfigProps> = ({
   open,
   onClose,
-  conversationId
+  agentId
 }) => {
-  const [conversation, setConversation] = useState<Call | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { agents } = useAgentsService();
   const { toast } = useToast();
-
-  useEffect(() => {
-    const fetchConversationData = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch call data
-        const { data: callData, error: callError } = await supabase
-          .from('calls')
-          .select('*')
-          .eq('id', conversationId)
-          .single();
-
-        if (callError) throw callError;
-        setConversation(callData as Call);
-        
-        // Simulate fetching messages for this conversation
-        // In a real app, you would get these from the database
-        setTimeout(() => {
-          const fakeMessages: Message[] = [
-            {
-              id: 1,
-              role: 'agent',
-              content: 'Hola, gracias por comunicarse con nuestro centro de atención. ¿En qué puedo ayudarle hoy?',
-              timestamp: '2023-04-25T10:23:12Z'
-            },
-            {
-              id: 2,
-              role: 'customer',
-              content: 'Hola, necesito información sobre mi última factura. No entiendo algunos cargos.',
-              timestamp: '2023-04-25T10:23:45Z'
-            },
-            {
-              id: 3,
-              role: 'agent',
-              content: 'Con gusto le ayudo. ¿Podría proporcionarme su número de cliente o la dirección de correo electrónico asociada con su cuenta?',
-              timestamp: '2023-04-25T10:24:10Z'
-            },
-            {
-              id: 4,
-              role: 'customer',
-              content: 'Mi número de cliente es AC-45789.',
-              timestamp: '2023-04-25T10:24:30Z'
-            },
-            {
-              id: 5,
-              role: 'agent',
-              content: 'Gracias. Estoy revisando su factura del mes de abril. Veo que hay un cargo de $29.99 por servicio premium y otro de $15 por cargo administrativo. ¿Estos son los cargos que no comprende?',
-              timestamp: '2023-04-25T10:25:15Z'
-            },
-            {
-              id: 6,
-              role: 'customer',
-              content: 'Sí, exactamente. ¿Qué es ese cargo administrativo? Nunca lo había visto antes.',
-              timestamp: '2023-04-25T10:25:45Z'
-            },
-            {
-              id: 7,
-              role: 'agent',
-              content: 'El cargo administrativo es nuevo y se implementó este mes debido a cambios en nuestra estructura de costos. Fue comunicado en el boletín de marzo. Sin embargo, como muestra de buena voluntad, puedo aplicar un crédito en su próxima factura por ese monto. ¿Le gustaría que lo hiciera?',
-              timestamp: '2023-04-25T10:26:30Z'
-            },
-            {
-              id: 8,
-              role: 'customer',
-              content: 'Sí, me parecería justo. No recibí ningún boletín sobre ese cambio.',
-              timestamp: '2023-04-25T10:27:00Z'
-            }
-          ];
-          setMessages(fakeMessages);
-          setLoading(false);
-        }, 1000);
-      } catch (error) {
-        console.error('Error fetching conversation data:', error);
-        toast({
-          title: 'Error',
-          description: 'No se pudo cargar los datos de la conversación',
-          variant: 'destructive'
-        });
-        onClose();
-      }
-    };
-    
-    if (open && conversationId) {
-      fetchConversationData();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [agent, setAgent] = useState<any>(null);
+  
+  const { register, handleSubmit, setValue, watch } = useForm<PromptConfigFormData>({
+    defaultValues: {
+      prompt_template: '',
+      voice_id: '',
+      example_input: 'Hola, necesito ayuda con mi factura mensual.',
     }
-  }, [open, conversationId, toast, onClose]);
-
-  const getSentimentColor = (score: number | null) => {
-    if (!score) return "bg-gray-500";
-    if (score >= 0.6) return "bg-green-500";
-    if (score <= 0.4) return "bg-red-500";
-    return "bg-blue-500";
+  });
+  
+  useEffect(() => {
+    if (agents) {
+      const currentAgent = agents.find(a => a.id === agentId);
+      if (currentAgent) {
+        setAgent(currentAgent);
+        setValue('prompt_template', currentAgent.prompt_template || '');
+        setValue('voice_id', currentAgent.voice_id || '');
+      }
+    }
+  }, [agents, agentId, setValue]);
+  
+  const generateExampleResponse = async (input: string, template: string) => {
+    setIsProcessing(true);
+    
+    try {
+      // Simular generación de respuesta de IA
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const responses = [
+        "Entiendo que tiene una consulta sobre su factura mensual. Sería útil conocer cuál es específicamente su preocupación. ¿Tiene preguntas sobre algún cargo, el total, o la fecha de vencimiento?",
+        "Hola, gracias por contactarnos. Con gusto le ayudaré con su factura mensual. ¿Podría proporcionarme más detalles sobre qué aspecto de la factura necesita asistencia?",
+        "Claro, estoy aquí para ayudarle con cualquier duda sobre su factura. ¿Podría por favor indicarme su número de cliente y qué información específica está buscando?"
+      ];
+      
+      return responses[Math.floor(Math.random() * responses.length)];
+    } catch (error) {
+      console.error('Error generando respuesta de ejemplo:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo generar una respuesta de ejemplo',
+        variant: 'destructive'
+      });
+      return '';
+    } finally {
+      setIsProcessing(false);
+    }
   };
   
-  const getSentimentText = (score: number | null) => {
-    if (!score) return "Sin datos";
-    if (score >= 0.6) return "Positivo";
-    if (score <= 0.4) return "Negativo";
-    return "Neutral";
+  const onTestPrompt = async () => {
+    const response = await generateExampleResponse(
+      watch('example_input'),
+      watch('prompt_template')
+    );
+    
+    setValue('example_output', response);
   };
   
-  const formatTime = (isoString: string) => {
-    if (!isoString) return "";
-    const date = new Date(isoString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const onSave = async (data: PromptConfigFormData) => {
+    try {
+      const { error } = await (supabase
+        .from('agents') as any)
+        .update({
+          prompt_template: data.prompt_template,
+          voice_id: data.voice_id
+        })
+        .eq('id', agentId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: 'Configuración guardada',
+        description: 'Los ajustes del agente han sido actualizados'
+      });
+      
+      onClose();
+    } catch (error) {
+      console.error('Error guardando configuración:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo guardar la configuración',
+        variant: 'destructive'
+      });
+    }
   };
-
+  
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Detalles de la conversación</DialogTitle>
+          <DialogTitle>Configurar Agente IA</DialogTitle>
           <DialogDescription>
-            {conversation ? `${conversation.caller_name || conversation.caller_number} - ${new Date(conversation.start_time).toLocaleString()}` : 'Cargando...'}
+            {agent?.name ? `Configurando prompt para ${agent.name}` : 'Cargando...'}
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex flex-col h-full">
-          <Tabs defaultValue="conversation" className="flex-1 flex flex-col">
-            <TabsList>
-              <TabsTrigger value="conversation">Conversación</TabsTrigger>
-              <TabsTrigger value="analytics">Análisis</TabsTrigger>
-              <TabsTrigger value="summary">Resumen</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="conversation" className="flex-1 flex flex-col overflow-hidden">
-              {loading ? (
-                <div className="flex justify-center items-center p-8">
-                  <p>Cargando conversación...</p>
-                </div>
-              ) : (
-                <>
-                  <ScrollArea className="flex-1 p-4">
-                    <div className="space-y-4">
-                      {messages.map((message) => (
-                        <div 
-                          key={message.id} 
-                          className={`flex ${message.role === 'agent' ? 'justify-start' : 'justify-end'}`}
-                        >
-                          <div 
-                            className={`max-w-[70%] p-3 rounded-lg ${
-                              message.role === 'agent' 
-                                ? 'bg-secondary/20 rounded-tl-none' 
-                                : 'bg-primary text-primary-foreground rounded-tr-none'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-2 mb-1">
-                              <Avatar className="h-6 w-6">
-                                {message.role === 'agent' 
-                                  ? <User className="h-4 w-4" /> 
-                                  : <Phone className="h-4 w-4" />
-                                }
-                              </Avatar>
-                              <span className="text-xs font-medium">
-                                {message.role === 'agent' ? 'Agente' : 'Cliente'}
-                              </span>
-                              <span className="text-xs text-muted-foreground ml-auto">
-                                {formatTime(message.timestamp)}
-                              </span>
-                            </div>
-                            <p className="text-sm">{message.content}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="analytics">
-              <div className="p-4 space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-accent p-4 rounded-lg">
-                    <p className="text-sm font-medium">Duración</p>
-                    <p className="text-2xl font-bold">{conversation?.duration ? `${Math.floor(conversation.duration / 60)}:${(conversation.duration % 60).toString().padStart(2, '0')}` : '--'}</p>
-                  </div>
-                  <div className="bg-accent p-4 rounded-lg">
-                    <p className="text-sm font-medium">Sentimiento</p>
-                    <div className="flex items-center mt-1">
-                      <div className={`w-3 h-3 rounded-full mr-2 ${getSentimentColor(conversation?.sentiment_score || null)}`}></div>
-                      <p className="text-lg font-bold">{getSentimentText(conversation?.sentiment_score || null)}</p>
-                    </div>
-                  </div>
-                  <div className="bg-accent p-4 rounded-lg">
-                    <p className="text-sm font-medium">Palabras por minuto</p>
-                    <p className="text-2xl font-bold">142</p>
-                  </div>
-                  <div className="bg-accent p-4 rounded-lg">
-                    <p className="text-sm font-medium">Tiempo de respuesta</p>
-                    <p className="text-2xl font-bold">1.2s</p>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <h3 className="text-lg font-medium">Intención detectada</h3>
-                  <Badge variant="outline" className="text-sm py-1">
-                    {conversation?.intent || 'No detectada'}
-                  </Badge>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Palabras clave</h3>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">factura</Badge>
-                    <Badge variant="secondary">cargo administrativo</Badge>
-                    <Badge variant="secondary">crédito</Badge>
-                    <Badge variant="secondary">boletín</Badge>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="summary">
-              <div className="p-4 space-y-6">
-                <div className="bg-accent p-4 rounded-lg">
-                  <h3 className="text-lg font-medium mb-2">Resumen de la conversación</h3>
-                  <p className="text-sm">
-                    El cliente llamó para preguntar sobre cargos en su factura de abril, específicamente un cargo administrativo de $15 que no había visto antes. Se le explicó que este cargo es nuevo y se implementó este mes, y que fue comunicado en el boletín de marzo. Como el cliente mencionó no haber recibido el boletín, se le ofreció un crédito de $15 en su próxima factura, lo cual aceptó.
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <h3 className="text-lg font-medium">Acciones realizadas</h3>
-                  <ul className="list-disc list-inside text-sm space-y-1">
-                    <li>Verificación de la cuenta del cliente</li>
-                    <li>Revisión de la factura de abril</li>
-                    <li>Explicación del cargo administrativo</li>
-                    <li>Aplicación de un crédito de $15 para la próxima factura</li>
-                  </ul>
-                </div>
-                
-                <div className="space-y-2">
-                  <h3 className="text-lg font-medium">Seguimiento requerido</h3>
-                  <p className="text-sm">Enviar confirmación por correo electrónico del crédito aplicado.</p>
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-          
-          <div className="p-4 border-t flex justify-between">
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm" className="gap-1">
-                <Download className="h-4 w-4" />
-                <span>Descargar</span>
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1">
-                <ExternalLink className="h-4 w-4" />
-                <span>Exportar</span>
-              </Button>
-            </div>
-            <Button variant="default" size="sm" onClick={onClose}>
-              Cerrar
-            </Button>
+        <form onSubmit={handleSubmit(onSave)} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="prompt_template">Plantilla de Prompt</Label>
+            <Textarea 
+              id="prompt_template"
+              placeholder="Template para guiar las respuestas del asistente"
+              className="min-h-[150px] font-mono text-sm"
+              {...register('prompt_template')}
+            />
+            <p className="text-xs text-muted-foreground">
+              Usa variables como {`{{user_name}}`}, {`{{context}}`}, etc. para personalizar las respuestas.
+            </p>
           </div>
-        </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="voice_id">ID de Voz</Label>
+            <Input 
+              id="voice_id"
+              placeholder="ID de la voz para Text-to-Speech (ej. es-ES-Neural2-A)"
+              {...register('voice_id')}
+            />
+          </div>
+          
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-medium mb-2">Probar Prompt</h4>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="example_input">Entrada de prueba</Label>
+                <Textarea 
+                  id="example_input"
+                  placeholder="Ingresa un ejemplo de mensaje de usuario para probar"
+                  className="min-h-[80px]"
+                  {...register('example_input')}
+                />
+              </div>
+              
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={onTestPrompt}
+                disabled={isProcessing}
+              >
+                {isProcessing ? 'Procesando...' : 'Generar respuesta de prueba'}
+              </Button>
+              
+              {watch('example_output') && (
+                <div className="space-y-2 border p-4 rounded-md bg-muted/50">
+                  <Label>Respuesta generada:</Label>
+                  <p className="text-sm">{watch('example_output')}</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit">
+              Guardar configuración
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
 };
 
-export default ConversationDetail;
+export default AgentPromptConfig;

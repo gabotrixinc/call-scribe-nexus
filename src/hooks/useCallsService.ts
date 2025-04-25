@@ -26,7 +26,6 @@ export const useCallsService = () => {
     queryKey: ['calls', 'active'],
     queryFn: async () => {
       try {
-        // Using type assertion to bypass TS errors until Supabase tables are properly defined
         const { data, error } = await (supabase
           .from('calls') as any)
           .select('*')
@@ -50,7 +49,6 @@ export const useCallsService = () => {
     queryKey: ['calls', 'metrics'],
     queryFn: async () => {
       try {
-        // Using type assertion to bypass TS errors until Supabase tables are properly defined
         const { data, error } = await (supabase
           .from('quality_metrics') as any)
           .select('*')
@@ -75,7 +73,6 @@ export const useCallsService = () => {
     queryKey: ['calls', 'completed'],
     queryFn: async () => {
       try {
-        // Using type assertion to bypass TS errors until Supabase tables are properly defined
         const { data, error } = await (supabase
           .from('calls') as any)
           .select('*')
@@ -100,7 +97,6 @@ export const useCallsService = () => {
   const startCall = useMutation({
     mutationFn: async (callData: Partial<Call>) => {
       try {
-        // Using type assertion to bypass TS errors until Supabase tables are properly defined
         const { data, error } = await (supabase
           .from('calls') as any)
           .insert([{ ...callData, status: 'active' }])
@@ -131,7 +127,6 @@ export const useCallsService = () => {
   const endCall = useMutation({
     mutationFn: async (callId: string) => {
       try {
-        // Using type assertion to bypass TS errors until Supabase tables are properly defined
         const { data, error } = await (supabase
           .from('calls') as any)
           .update({
@@ -167,7 +162,6 @@ export const useCallsService = () => {
   const abandonCall = useMutation({
     mutationFn: async (callId: string) => {
       try {
-        // Using type assertion to bypass TS errors until Supabase tables are properly defined
         const { data, error } = await (supabase
           .from('calls') as any)
           .update({
