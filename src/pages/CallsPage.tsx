@@ -1,11 +1,8 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import Layout from '@/components/Layout';
 import ActiveCallsList from '@/components/calls/ActiveCallsList';
-import { Button } from '@/components/ui/button';
-import { 
-  Input 
-} from '@/components/ui/input';
+import CallMaker from '@/components/calls/CallMaker';
 import {
   Card,
   CardContent,
@@ -14,87 +11,45 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from '@/components/ui/use-toast';
-import { PhoneCall, Phone } from 'lucide-react';
+import { PhoneCall } from 'lucide-react';
+import { useCallsService } from '@/hooks/useCallsService';
 
 const CallsPage: React.FC = () => {
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const { toast } = useToast();
-
-  const handleMakeCall = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!phoneNumber.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid phone number",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Initiating Call",
-      description: `Calling ${phoneNumber}...`,
-    });
-  };
+  const { activeCalls, isLoadingActiveCalls } = useCallsService();
 
   return (
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Call Management</h1>
-          <p className="text-muted-foreground">Monitor and manage active calls in your contact center.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Gestión de Llamadas</h1>
+          <p className="text-muted-foreground">Monitoreo y gestión de llamadas activas en su centro de contacto.</p>
         </div>
         
         <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
-          <Card className="col-span-full md:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="h-5 w-5 text-primary" />
-                <span>Make a Call</span>
-              </CardTitle>
-              <CardDescription>Place an outbound call</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleMakeCall} className="space-y-4">
-                <div className="space-y-2">
-                  <Input
-                    type="tel"
-                    placeholder="Phone Number"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                  />
-                </div>
-                <Button type="submit" className="w-full">
-                  <PhoneCall className="h-4 w-4 mr-2" />
-                  Call Now
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <CallMaker />
 
           <Card className="col-span-full md:col-span-3">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <PhoneCall className="h-5 w-5 text-primary" />
-                <span>Call Status</span>
+                <span>Estado de las Llamadas</span>
               </CardTitle>
               <CardDescription>
-                Real-time statistics for your call center
+                Estadísticas en tiempo real de su centro de llamadas
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-accent rounded-lg p-4 flex flex-col items-center justify-center">
-                  <span className="text-sm text-muted-foreground">Active Calls</span>
-                  <span className="text-3xl font-bold">26</span>
+                  <span className="text-sm text-muted-foreground">Llamadas Activas</span>
+                  <span className="text-3xl font-bold">{isLoadingActiveCalls ? "..." : activeCalls?.length || 0}</span>
                 </div>
                 <div className="bg-accent rounded-lg p-4 flex flex-col items-center justify-center">
-                  <span className="text-sm text-muted-foreground">In Queue</span>
-                  <span className="text-3xl font-bold">3</span>
+                  <span className="text-sm text-muted-foreground">En Cola</span>
+                  <span className="text-3xl font-bold">0</span>
                 </div>
                 <div className="bg-accent rounded-lg p-4 flex flex-col items-center justify-center">
-                  <span className="text-sm text-muted-foreground">Avg Wait Time</span>
+                  <span className="text-sm text-muted-foreground">Tiempo de Espera Prom.</span>
                   <span className="text-3xl font-bold">0:42</span>
                 </div>
               </div>
@@ -104,10 +59,10 @@ const CallsPage: React.FC = () => {
         
         <Tabs defaultValue="active" className="w-full">
           <TabsList className="grid w-full md:w-auto grid-cols-2 md:grid-cols-4">
-            <TabsTrigger value="active">Active Calls</TabsTrigger>
-            <TabsTrigger value="recent">Recent Calls</TabsTrigger>
-            <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="active">Llamadas Activas</TabsTrigger>
+            <TabsTrigger value="recent">Llamadas Recientes</TabsTrigger>
+            <TabsTrigger value="scheduled">Programadas</TabsTrigger>
+            <TabsTrigger value="history">Historial</TabsTrigger>
           </TabsList>
           <TabsContent value="active" className="mt-4">
             <ActiveCallsList />
@@ -115,33 +70,33 @@ const CallsPage: React.FC = () => {
           <TabsContent value="recent" className="mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Recent Calls</CardTitle>
-                <CardDescription>View calls from the last 24 hours</CardDescription>
+                <CardTitle>Llamadas Recientes</CardTitle>
+                <CardDescription>Ver llamadas de las últimas 24 horas</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Recent calls history will appear here...</p>
+                <p className="text-sm text-muted-foreground">El historial de llamadas recientes aparecerá aquí...</p>
               </CardContent>
             </Card>
           </TabsContent>
           <TabsContent value="scheduled" className="mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Scheduled Calls</CardTitle>
-                <CardDescription>Upcoming scheduled calls and callbacks</CardDescription>
+                <CardTitle>Llamadas Programadas</CardTitle>
+                <CardDescription>Próximas llamadas programadas y devoluciones de llamada</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">You have no scheduled calls at this time.</p>
+                <p className="text-sm text-muted-foreground">No tiene llamadas programadas en este momento.</p>
               </CardContent>
             </Card>
           </TabsContent>
           <TabsContent value="history" className="mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Call History</CardTitle>
-                <CardDescription>Review past calls and analytics</CardDescription>
+                <CardTitle>Historial de Llamadas</CardTitle>
+                <CardDescription>Revisar llamadas pasadas y análisis</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Call history will appear here...</p>
+                <p className="text-sm text-muted-foreground">El historial de llamadas aparecerá aquí...</p>
               </CardContent>
             </Card>
           </TabsContent>

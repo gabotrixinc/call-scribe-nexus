@@ -1,73 +1,42 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PhoneCall, MessageSquare, User } from "lucide-react";
+import { PhoneCall, MessageSquare, User, Play, SkipForward, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-
-interface Call {
-  id: string;
-  caller: string;
-  time: string;
-  duration: string;
-  status: "active" | "queued" | "transferring";
-  agentType: "ai" | "human";
-  sentiment?: "positive" | "negative" | "neutral";
-}
-
-const activeCalls: Call[] = [
-  {
-    id: "call-1",
-    caller: "+1 (555) 123-4567",
-    time: "12:34 PM",
-    duration: "4:28",
-    status: "active",
-    agentType: "ai",
-    sentiment: "positive"
-  },
-  {
-    id: "call-2",
-    caller: "+1 (555) 234-5678",
-    time: "12:37 PM",
-    duration: "0:57",
-    status: "active",
-    agentType: "ai",
-    sentiment: "neutral"
-  },
-  {
-    id: "call-3",
-    caller: "+1 (555) 345-6789",
-    time: "12:39 PM",
-    duration: "0:15",
-    status: "transferring",
-    agentType: "human"
-  },
-  {
-    id: "call-4",
-    caller: "+1 (555) 456-7890",
-    time: "12:42 PM",
-    duration: "queued",
-    status: "queued",
-    agentType: "ai"
-  }
-];
+import { useCallsService, Call } from '@/hooks/useCallsService';
 
 const ActiveCallsList: React.FC = () => {
+  const { activeCalls, isLoadingActiveCalls, endCall, abandonCall } = useCallsService();
   const { toast } = useToast();
+  const [listeningTo, setListeningTo] = useState<string | null>(null);
   
   const handleListenIn = (callId: string) => {
+    setListeningTo(callId);
     toast({
-      title: "Call Monitoring",
-      description: `Now listening to call ${callId}`,
+      title: "Monitoreo de llamada",
+      description: `Escuchando la llamada ${callId}`,
     });
+    
+    // Simulamos un tiempo de escucha
+    setTimeout(() => {
+      setListeningTo(null);
+    }, 5000);
   };
   
-  const handleTakeOver = (callId: string) => {
+  const handleTakeOver = async (callId: string) => {
     toast({
-      title: "Call Transfer",
-      description: `Taking over call ${callId}`,
+      title: "Transferencia de llamada",
+      description: `Tomando control de la llamada ${callId}`,
     });
+    
+    // Simular finalización de la llamada actual para transferir
+    try {
+      await endCall.mutateAsync(callId);
+    } catch (error) {
+      console.error("Error al transferir la llamada:", error);
+    }
   };
   
   const getStatusColor = (status: Call["status"]) => {
@@ -76,24 +45,33 @@ const ActiveCallsList: React.FC = () => {
         return "bg-green-500";
       case "queued":
         return "bg-yellow-500";
-      case "transferring":
-        return "bg-blue-500";
       default:
         return "bg-gray-500";
     }
   };
   
-  const getSentimentColor = (sentiment?: Call["sentiment"]) => {
-    switch (sentiment) {
-      case "positive":
-        return "bg-green-500";
-      case "negative":
-        return "bg-red-500";
-      case "neutral":
-        return "bg-blue-500";
-      default:
-        return "bg-gray-500";
-    }
+  const getSentimentColor = (sentiment?: number | null) => {
+    if (sentiment === null || sentiment === undefined) return "bg-gray-500";
+    if (sentiment >= 0.6) return "bg-green-500";
+    if (sentiment <= 0.4) return "bg-red-500";
+    return "bg-blue-500";
+  };
+  
+  const getSentimentText = (sentiment?: number | null) => {
+    if (sentiment === null || sentiment === undefined) return "--";
+    if (sentiment >= 0.6) return "Positivo";
+    if (sentiment <= 0.4) return "Negativo";
+    return "Neutral";
+  };
+
+  const formatDuration = (startTime: string) => {
+    const start = new Date(startTime).getTime();
+    const now = new Date().getTime();
+    const diffSeconds = Math.floor((now - start) / 1000);
+    const minutes = Math.floor(diffSeconds / 60);
+    const seconds = diffSeconds % 60;
+    
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -102,65 +80,112 @@ const ActiveCallsList: React.FC = () => {
         <CardTitle className="text-xl font-bold">
           <div className="flex items-center gap-2">
             <PhoneCall className="h-5 w-5 text-primary" />
-            <span>Active Calls</span>
+            <span>Llamadas Activas</span>
           </div>
         </CardTitle>
         <Badge variant="outline" className="ml-auto">
-          {activeCalls.length} active
+          {isLoadingActiveCalls ? "Cargando..." : `${activeCalls?.length || 0} activas`}
         </Badge>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border">
-          <table className="w-full caption-bottom text-sm">
-            <thead>
-              <tr className="border-b transition-colors hover:bg-muted/50">
-                <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Caller</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Started At</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Duration</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Agent</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Sentiment</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {activeCalls.map((call) => (
-                <tr key={call.id} className="border-b transition-colors hover:bg-muted/50">
-                  <td className="p-4 align-middle">
-                    <div className="flex items-center gap-2">
-                      <div className={`h-2 w-2 rounded-full ${getStatusColor(call.status)}`}></div>
-                      <span className="capitalize">{call.status}</span>
-                    </div>
-                  </td>
-                  <td className="p-4 align-middle font-medium">{call.caller}</td>
-                  <td className="p-4 align-middle">{call.time}</td>
-                  <td className="p-4 align-middle">{call.duration}</td>
-                  <td className="p-4 align-middle">
-                    <Badge variant={call.agentType === "ai" ? "secondary" : "default"}>
-                      {call.agentType === "ai" ? "AI" : "Human"}
-                    </Badge>
-                  </td>
-                  <td className="p-4 align-middle">
-                    {call.sentiment ? (
-                      <div className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full ${getSentimentColor(call.sentiment)}`}></div>
-                        <span className="capitalize">{call.sentiment}</span>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">--</span>
-                    )}
-                  </td>
-                  <td className="p-4 align-middle">
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="outline" onClick={() => handleListenIn(call.id)}>Listen</Button>
-                      <Button size="sm" variant="secondary" onClick={() => handleTakeOver(call.id)}>Take Over</Button>
-                    </div>
-                  </td>
+        {isLoadingActiveCalls ? (
+          <div className="flex justify-center items-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2">Cargando llamadas...</span>
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <table className="w-full caption-bottom text-sm">
+              <thead>
+                <tr className="border-b transition-colors hover:bg-muted/50">
+                  <th className="h-12 px-4 text-left align-middle font-medium">Estado</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium">Llamante</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium">Inicio</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium">Duración</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium">Agente</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium">Sentimiento</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {activeCalls && activeCalls.length > 0 ? (
+                  activeCalls.map((call) => (
+                    <tr key={call.id} className="border-b transition-colors hover:bg-muted/50">
+                      <td className="p-4 align-middle">
+                        <div className="flex items-center gap-2">
+                          <div className={`h-2 w-2 rounded-full ${getStatusColor(call.status)}`}></div>
+                          <span className="capitalize">
+                            {call.status === "active" ? "Activa" : 
+                            call.status === "queued" ? "En espera" : call.status}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle font-medium">{call.caller_name || call.caller_number}</td>
+                      <td className="p-4 align-middle">
+                        {new Date(call.start_time).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+                      <td className="p-4 align-middle">{formatDuration(call.start_time)}</td>
+                      <td className="p-4 align-middle">
+                        <Badge variant={call.ai_agent_id ? "secondary" : "default"}>
+                          {call.ai_agent_id ? "IA" : "Humano"}
+                        </Badge>
+                      </td>
+                      <td className="p-4 align-middle">
+                        {call.sentiment_score !== null ? (
+                          <div className="flex items-center gap-2">
+                            <div className={`h-2 w-2 rounded-full ${getSentimentColor(call.sentiment_score)}`}></div>
+                            <span className="capitalize">{getSentimentText(call.sentiment_score)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">--</span>
+                        )}
+                      </td>
+                      <td className="p-4 align-middle">
+                        <div className="flex space-x-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleListenIn(call.id)}
+                            disabled={listeningTo === call.id}
+                          >
+                            {listeningTo === call.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Escuchando...
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-4 w-4 mr-1" />
+                                Escuchar
+                              </>
+                            )}
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="secondary" 
+                            onClick={() => handleTakeOver(call.id)}
+                          >
+                            <SkipForward className="h-4 w-4 mr-1" />
+                            Intervenir
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                      No hay llamadas activas en este momento
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

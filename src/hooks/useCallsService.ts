@@ -1,6 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
 
 export interface Call {
   id: string;
@@ -24,43 +25,171 @@ export const useCallsService = () => {
   const { data: activeCalls, isLoading: isLoadingActiveCalls } = useQuery({
     queryKey: ['calls', 'active'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('calls')
-        .select('*')
-        .eq('status', 'active') as any;
+      try {
+        const { data, error } = await supabase
+          .from('calls')
+          .select('*')
+          .eq('status', 'active');
 
-      if (error) throw error;
-      return data as Call[];
+        if (error) throw error;
+        return data as Call[];
+      } catch (error) {
+        console.error('Error fetching active calls:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudieron cargar las llamadas activas',
+          variant: 'destructive'
+        });
+        return [];
+      }
     }
   });
 
-  const { data: callMetrics } = useQuery({
+  const { data: callMetrics, isLoading: isLoadingCallMetrics } = useQuery({
     queryKey: ['calls', 'metrics'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('quality_metrics')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(100) as any;
+      try {
+        const { data, error } = await supabase
+          .from('quality_metrics')
+          .select('*')
+          .order('timestamp', { ascending: false })
+          .limit(100);
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error fetching call metrics:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudieron cargar las métricas de llamadas',
+          variant: 'destructive'
+        });
+        return [];
+      }
+    }
+  });
+
+  const { data: completedCalls, isLoading: isLoadingCompletedCalls } = useQuery({
+    queryKey: ['calls', 'completed'],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('calls')
+          .select('*')
+          .eq('status', 'completed')
+          .order('end_time', { ascending: false })
+          .limit(50);
+
+        if (error) throw error;
+        return data as Call[];
+      } catch (error) {
+        console.error('Error fetching completed calls:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudieron cargar las llamadas completadas',
+          variant: 'destructive'
+        });
+        return [];
+      }
     }
   });
 
   const startCall = useMutation({
     mutationFn: async (callData: Partial<Call>) => {
-      const { data, error } = await supabase
-        .from('calls')
-        .insert([{ ...callData, status: 'active' }] as any)
-        .select()
-        .single() as any;
+      try {
+        const { data, error } = await supabase
+          .from('calls')
+          .insert([{ ...callData, status: 'active' }])
+          .select()
+          .single();
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error starting call:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudo iniciar la llamada',
+          variant: 'destructive'
+        });
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['calls'] });
+      toast({
+        title: 'Llamada iniciada',
+        description: 'La llamada se ha iniciado correctamente'
+      });
+    }
+  });
+
+  const endCall = useMutation({
+    mutationFn: async (callId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('calls')
+          .update({
+            status: 'completed',
+            end_time: new Date().toISOString(),
+            duration: 300 // placeholder duration in seconds
+          })
+          .eq('id', callId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error ending call:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudo finalizar la llamada',
+          variant: 'destructive'
+        });
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calls'] });
+      toast({
+        title: 'Llamada finalizada',
+        description: 'La llamada ha sido finalizada correctamente'
+      });
+    }
+  });
+
+  const abandonCall = useMutation({
+    mutationFn: async (callId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('calls')
+          .update({
+            status: 'abandoned',
+            end_time: new Date().toISOString()
+          })
+          .eq('id', callId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error abandoning call:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudo abandonar la llamada',
+          variant: 'destructive'
+        });
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calls'] });
+      toast({
+        title: 'Llamada abandonada',
+        description: 'La llamada ha sido marcada como abandonada'
+      });
     }
   });
 
@@ -68,6 +197,11 @@ export const useCallsService = () => {
     activeCalls,
     isLoadingActiveCalls,
     callMetrics,
-    startCall
+    isLoadingCallMetrics,
+    completedCalls,
+    isLoadingCompletedCalls,
+    startCall,
+    endCall,
+    abandonCall
   };
 };
