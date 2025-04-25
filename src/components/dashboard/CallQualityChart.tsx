@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   Card,
@@ -15,14 +16,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
-const data = [
-  { metric: "STT Accuracy", score: 96, color: "hsl(var(--primary))" },
-  { metric: "Voice Quality", score: 92, color: "hsl(var(--secondary))" },
-  { metric: "Response Time", score: 87, color: "hsl(264, 70%, 50%)" }, // Light purple
-  { metric: "Intent Recognition", score: 93, color: "hsl(32, 94%, 62%)" }, // Orange
-  { metric: "Customer Satisfaction", score: 89, color: "hsl(var(--secondary))" },
-];
+import { useCallsService } from '@/hooks/useCallsService';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -32,22 +26,46 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       </div>
     );
   }
-
   return null;
 };
 
 const CallQualityChart: React.FC = () => {
+  const { callMetrics } = useCallsService();
+
+  // Procesar las métricas para mostrar promedios
+  const processedData = React.useMemo(() => {
+    if (!callMetrics) return [];
+
+    const metricGroups = callMetrics.reduce((acc: any, metric: any) => {
+      if (!acc[metric.metric_name]) {
+        acc[metric.metric_name] = {
+          total: 0,
+          count: 0
+        };
+      }
+      acc[metric.metric_name].total += metric.score;
+      acc[metric.metric_name].count += 1;
+      return acc;
+    }, {});
+
+    return Object.entries(metricGroups).map(([metric, data]: [string, any]) => ({
+      metric,
+      score: Math.round(data.total / data.count),
+      color: 'hsl(var(--primary))'
+    }));
+  }, [callMetrics]);
+
   return (
     <Card className="col-span-full xl:col-span-6">
       <CardHeader>
-        <CardTitle>Voice Quality Metrics</CardTitle>
-        <CardDescription>Performance scores for AI-based calls</CardDescription>
+        <CardTitle>Métricas de Calidad de Voz</CardTitle>
+        <CardDescription>Puntuaciones de rendimiento para llamadas basadas en IA</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={data}
+              data={processedData}
               margin={{
                 top: 5,
                 right: 5,
@@ -79,7 +97,7 @@ const CallQualityChart: React.FC = () => {
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="score" fill="currentColor" radius={[4, 4, 0, 0]}>
-                {data.map((entry, index) => (
+                {processedData.map((entry, index) => (
                   <rect key={`rect-${index}`} fill={entry.color} />
                 ))}
               </Bar>

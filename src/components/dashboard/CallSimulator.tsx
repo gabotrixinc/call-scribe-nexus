@@ -1,10 +1,12 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { MessageSquare, Mic, Phone } from 'lucide-react';
+import { useCallsService } from '@/hooks/useCallsService';
+import { useAgentsService } from '@/hooks/useAgentsService';
+import { useSettingsService } from '@/hooks/useSettingsService';
 
 const CallSimulator: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -13,26 +15,59 @@ const CallSimulator: React.FC = () => {
   const [conversation, setConversation] = useState<{ role: 'user' | 'ai'; message: string }[]>([]);
   const { toast } = useToast();
 
-  const handleStartCall = () => {
+  const { startCall } = useCallsService();
+  const { agents } = useAgentsService();
+  const { settings } = useSettingsService();
+
+  const handleStartCall = async () => {
     if (isCallActive) {
       setIsCallActive(false);
       setConversation([]);
       toast({
-        title: "Call Ended",
-        description: "The call has been terminated",
+        title: "Llamada Finalizada",
+        description: "La llamada ha sido terminada",
       });
       return;
     }
     
-    setIsCallActive(true);
-    setConversation([
-      { role: 'ai', message: "Hello, thank you for calling our support center. How can I assist you today?" }
-    ]);
-    
-    toast({
-      title: "Call Started",
-      description: "AI agent is ready to assist",
-    });
+    try {
+      const availableAgent = agents?.find(a => a.type === 'ai' && a.status === 'available');
+      
+      if (!availableAgent) {
+        toast({
+          title: "Error",
+          description: "No hay agentes AI disponibles en este momento",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await startCall.mutateAsync({
+        caller_number: "+1234567890", // En producción, esto vendría del sistema telefónico
+        status: 'active',
+        ai_agent_id: availableAgent.id
+      });
+
+      setIsCallActive(true);
+      setConversation([
+        { 
+          role: 'ai', 
+          message: settings?.default_greeting || "Hola, gracias por llamar. ¿Cómo puedo ayudarte hoy?" 
+        }
+      ]);
+      
+      toast({
+        title: "Llamada Iniciada",
+        description: "Agente AI listo para asistir",
+      });
+    } catch (error) {
+      console.error('Error starting call:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo iniciar la llamada",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleRecordVoice = () => {
