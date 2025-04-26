@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +12,7 @@ import {
 import { 
   Phone, 
   Loader2,
-  Dialpad as DialpadIcon 
+  Phone as DialpadIcon 
 } from 'lucide-react';
 import { useCallsService } from '@/hooks/useCallsService';
 import { useAgentsService } from '@/hooks/useAgentsService';

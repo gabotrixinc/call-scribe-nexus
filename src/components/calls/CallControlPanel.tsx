@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,7 +15,7 @@ import {
   VolumeX, 
   Pause,
   Play, 
-  Stop
+  CircleStop 
 } from 'lucide-react';
 import { useCallsService } from '@/hooks/useCallsService';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +39,6 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
   const [isPaused, setIsPaused] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
 
-  // Simular duración de la llamada
   useEffect(() => {
     const start = new Date(startTime).getTime();
     const timer = setInterval(() => {
@@ -124,7 +122,7 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
             onClick={handleEndCall}
             disabled={isEnding}
           >
-            <Stop />
+            <CircleStop />
           </Button>
         </div>
       </CardContent>

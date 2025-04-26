@@ -1,7 +1,11 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialpad, Phone, X, Plus, Delete } from 'lucide-react';
+import { 
+  Phone, 
+  X, 
+  Plus, 
+  Delete 
+} from 'lucide-react';
 
 interface DialpadProps {
   value: string;
