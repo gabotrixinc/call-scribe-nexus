@@ -7,6 +7,7 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -22,16 +23,25 @@ serve(async (req) => {
     const twilioModule = await import('npm:twilio@4.21.0')
     const twilio = twilioModule.default
     
-    const client = twilio(
-      Deno.env.get('TWILIO_ACCOUNT_SID'),
-      Deno.env.get('TWILIO_AUTH_TOKEN')
-    )
+    const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
+    const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
+    const twilioPhone = Deno.env.get('TWILIO_PHONE_NUMBER')
+
+    if (!accountSid || !authToken || !twilioPhone) {
+      throw new Error('Missing Twilio credentials or phone number')
+    }
+
+    console.log(`Making call to: ${phoneNumber} from: ${twilioPhone}`)
+    
+    const client = twilio(accountSid, authToken)
 
     const call = await client.calls.create({
       url: 'http://demo.twilio.com/docs/voice.xml', // URL for TwiML instructions
       to: phoneNumber,
-      from: Deno.env.get('TWILIO_PHONE_NUMBER'),
+      from: twilioPhone,
     })
+
+    console.log(`Call initiated with SID: ${call.sid}`)
 
     return new Response(
       JSON.stringify({ success: true, callSid: call.sid }),

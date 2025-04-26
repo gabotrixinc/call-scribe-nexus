@@ -91,10 +91,38 @@ export const useSettingsService = () => {
     }
   };
 
+  const testTwilioConnection = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('make-call', {
+        body: { 
+          phoneNumber: '+1234567890',  // Número de prueba
+          test: true // Indicar que es una prueba
+        }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Conexión a Twilio exitosa',
+        description: 'La configuración de Twilio es correcta'
+      });
+      return true;
+    } catch (error) {
+      console.error('Twilio test failed:', error);
+      toast({
+        title: 'Error de conexión a Twilio',
+        description: 'No se pudo conectar con Twilio',
+        variant: 'destructive'
+      });
+      return false;
+    }
+  };
+
   return {
     settings,
     isLoadingSettings,
     updateSettings,
-    testApiConnection
+    testApiConnection,
+    testTwilioConnection
   };
 };

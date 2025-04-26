@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,8 +45,9 @@ const CallSimulator: React.FC = () => {
 
       await startCall.mutateAsync({
         caller_number: "+1234567890", // En producción, esto vendría del sistema telefónico
-        status: 'active',
-        ai_agent_id: availableAgent.id
+        caller_name: "Demo User",
+        ai_agent_id: availableAgent.id,
+        start_time: new Date().toISOString(),
       });
 
       setIsCallActive(true);

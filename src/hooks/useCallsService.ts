@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -6,21 +5,9 @@ import { Database } from '@/integrations/supabase/types';
 
 export type CallStatus = 'active' | 'queued' | 'completed' | 'abandoned';
 
-export interface Call {
-  id: string;
-  caller_number: string;
-  caller_name: string | null;
-  status: CallStatus;
-  start_time: string;
-  end_time: string | null;
-  duration: number | null;
-  recording_url: string | null;
-  transcript: string | null;
-  ai_agent_id: string | null;
-  human_agent_id: string | null;
-  sentiment_score: number | null;
-  intent: string | null;
-}
+type CallInsert = Database['public']['Tables']['calls']['Insert'];
+type CallRow = Database['public']['Tables']['calls']['Row'];
+export type Call = CallRow;
 
 export const useCallsService = () => {
   const queryClient = useQueryClient();
@@ -57,7 +44,7 @@ export const useCallsService = () => {
       start_time: string;
     }) => {
       try {
-        const { error: twilioError } = await supabase.functions.invoke('make-call', {
+        const { data: twilioData, error: twilioError } = await supabase.functions.invoke('make-call', {
           body: { 
             phoneNumber: callData.caller_number,
             agentId: callData.ai_agent_id || callData.human_agent_id
@@ -66,14 +53,14 @@ export const useCallsService = () => {
 
         if (twilioError) throw twilioError;
 
-        // Define el objeto con los campos requeridos
-        const newCall = {
+        const newCall: CallInsert = {
           caller_number: callData.caller_number,
           caller_name: callData.caller_name || null,
-          status: 'active' as CallStatus,
+          status: 'active',
           start_time: callData.start_time,
           ai_agent_id: callData.ai_agent_id || null,
-          human_agent_id: callData.human_agent_id || null
+          human_agent_id: callData.human_agent_id || null,
+          twilio_call_sid: twilioData?.callSid || null
         };
 
         const { data, error } = await supabase
@@ -158,7 +145,7 @@ export const useCallsService = () => {
         const { data, error } = await supabase
           .from('calls')
           .update({
-            status: 'completed' as CallStatus,
+            status: 'completed',
             end_time: new Date().toISOString(),
             duration: 300 // placeholder duration in seconds
           })
@@ -193,7 +180,7 @@ export const useCallsService = () => {
         const { data, error } = await supabase
           .from('calls')
           .update({
-            status: 'abandoned' as CallStatus,
+            status: 'abandoned',
             end_time: new Date().toISOString()
           })
           .eq('id', callId)

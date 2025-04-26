@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import ActiveCallsList from '@/components/calls/ActiveCallsList';
 import CallMaker from '@/components/calls/CallMaker';
@@ -13,9 +13,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PhoneCall } from 'lucide-react';
 import { useCallsService } from '@/hooks/useCallsService';
+import CallControlPanel from '@/components/calls/CallControlPanel';
+import { Separator } from '@/components/ui/separator';
 
 const CallsPage: React.FC = () => {
   const { activeCalls, isLoadingActiveCalls } = useCallsService();
+  const [selectedTab, setSelectedTab] = useState<string>('active');
+
+  // Filtrar las llamadas activas para mostrar los paneles de control
+  const activeCallsForDisplay = activeCalls?.slice(0, 3) || [];
 
   return (
     <Layout>
@@ -24,6 +30,20 @@ const CallsPage: React.FC = () => {
           <h1 className="text-3xl font-bold tracking-tight">Gestión de Llamadas</h1>
           <p className="text-muted-foreground">Monitoreo y gestión de llamadas activas en su centro de contacto.</p>
         </div>
+        
+        {activeCallsForDisplay.length > 0 && (
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-3 mb-4">
+            {activeCallsForDisplay.map((call) => (
+              <CallControlPanel
+                key={call.id}
+                callId={call.id}
+                phoneNumber={call.caller_number}
+                callerName={call.caller_name}
+                startTime={call.start_time}
+              />
+            ))}
+          </div>
+        )}
         
         <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
           <CallMaker />
@@ -57,7 +77,7 @@ const CallsPage: React.FC = () => {
           </Card>
         </div>
         
-        <Tabs defaultValue="active" className="w-full">
+        <Tabs defaultValue="active" className="w-full" value={selectedTab} onValueChange={setSelectedTab}>
           <TabsList className="grid w-full md:w-auto grid-cols-2 md:grid-cols-4">
             <TabsTrigger value="active">Llamadas Activas</TabsTrigger>
             <TabsTrigger value="recent">Llamadas Recientes</TabsTrigger>
