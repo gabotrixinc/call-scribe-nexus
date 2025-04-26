@@ -3,22 +3,26 @@ import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import ActiveCallsList from '@/components/calls/ActiveCallsList';
 import CallMaker from '@/components/calls/CallMaker';
+import TwilioConnectionTest from '@/components/calls/TwilioConnectionTest';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PhoneCall } from 'lucide-react';
+import { PhoneCall, Settings } from 'lucide-react';
 import { useCallsService } from '@/hooks/useCallsService';
 import CallControlPanel from '@/components/calls/CallControlPanel';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 
 const CallsPage: React.FC = () => {
   const { activeCalls, isLoadingActiveCalls } = useCallsService();
   const [selectedTab, setSelectedTab] = useState<string>('active');
+  const [showSettings, setShowSettings] = useState(false);
 
   // Filtrar las llamadas activas para mostrar los paneles de control
   const activeCallsForDisplay = activeCalls?.slice(0, 3) || [];
@@ -26,10 +30,32 @@ const CallsPage: React.FC = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gestión de Llamadas</h1>
-          <p className="text-muted-foreground">Monitoreo y gestión de llamadas activas en su centro de contacto.</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Gestión de Llamadas</h1>
+            <p className="text-muted-foreground">Monitoreo y gestión de llamadas activas en su centro de contacto.</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSettings(!showSettings)}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Configuración
+          </Button>
         </div>
+        
+        {showSettings && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Configuración de llamadas</CardTitle>
+              <CardDescription>Verifique la conexión con Twilio y configure parámetros</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TwilioConnectionTest />
+            </CardContent>
+          </Card>
+        )}
         
         {activeCallsForDisplay.length > 0 && (
           <div className="grid gap-4 grid-cols-1 md:grid-cols-3 mb-4">

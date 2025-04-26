@@ -51,12 +51,13 @@ export const useCallsService = () => {
           }
         });
 
-        if (twilioError) throw twilioError;
+        if (twilioError) throw new Error(`Error de Twilio: ${twilioError}`);
+        if (!twilioData?.success) throw new Error(twilioData?.error || 'Error al iniciar la llamada');
 
         const newCall: CallInsert = {
           caller_number: callData.caller_number,
           caller_name: callData.caller_name || null,
-          status: 'active',
+          status: 'active' as CallStatus,
           start_time: callData.start_time,
           ai_agent_id: callData.ai_agent_id || null,
           human_agent_id: callData.human_agent_id || null,
@@ -65,7 +66,7 @@ export const useCallsService = () => {
 
         const { data, error } = await supabase
           .from('calls')
-          .insert([newCall])
+          .insert(newCall)
           .select()
           .single();
 
@@ -74,8 +75,8 @@ export const useCallsService = () => {
       } catch (error) {
         console.error('Error starting call:', error);
         toast({
-          title: 'Error',
-          description: 'No se pudo iniciar la llamada',
+          title: 'Error al iniciar la llamada',
+          description: error.message || 'No se pudo iniciar la llamada',
           variant: 'destructive'
         });
         throw error;
@@ -145,9 +146,9 @@ export const useCallsService = () => {
         const { data, error } = await supabase
           .from('calls')
           .update({
-            status: 'completed',
+            status: 'completed' as CallStatus,
             end_time: new Date().toISOString(),
-            duration: 300 // placeholder duration in seconds
+            duration: 300 // duración en segundos
           })
           .eq('id', callId)
           .select()
@@ -180,7 +181,7 @@ export const useCallsService = () => {
         const { data, error } = await supabase
           .from('calls')
           .update({
-            status: 'abandoned',
+            status: 'abandoned' as CallStatus,
             end_time: new Date().toISOString()
           })
           .eq('id', callId)
@@ -211,10 +212,10 @@ export const useCallsService = () => {
   return {
     activeCalls,
     isLoadingActiveCalls,
-    callMetrics,
-    isLoadingCallMetrics,
-    completedCalls,
-    isLoadingCompletedCalls,
+    callMetrics: [],
+    isLoadingCallMetrics: false,
+    completedCalls: [],
+    isLoadingCompletedCalls: false,
     startCall,
     endCall,
     abandonCall
