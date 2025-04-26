@@ -1,1 +1,6 @@
+
+# This file was generated with Lovable. Do not edit it directly.
 project_id = "clifbcngdktxcxlsiwol"
+
+[functions.make-call]
+verify_jwt = false

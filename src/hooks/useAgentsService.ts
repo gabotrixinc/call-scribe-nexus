@@ -1,16 +1,13 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { Database } from '@/integrations/supabase/types';
 
-export interface Agent {
-  id: string;
-  name: string;
+type AgentRow = Database['public']['Tables']['agents']['Row'];
+
+export interface Agent extends AgentRow {
   type: 'ai' | 'human';
   status: 'available' | 'busy' | 'offline';
-  specialization: string | null;
-  voice_id: string | null;
-  prompt_template: string | null;
 }
 
 export const useAgentsService = () => {
@@ -20,8 +17,8 @@ export const useAgentsService = () => {
     queryKey: ['agents'],
     queryFn: async () => {
       try {
-        const { data, error } = await (supabase
-          .from('agents') as any)
+        const { data, error } = await supabase
+          .from('agents')
           .select('*')
           .order('name');
 
@@ -42,8 +39,8 @@ export const useAgentsService = () => {
   const updateAgentStatus = useMutation({
     mutationFn: async ({ agentId, status }: { agentId: string; status: Agent['status'] }) => {
       try {
-        const { data, error } = await (supabase
-          .from('agents') as any)
+        const { data, error } = await supabase
+          .from('agents')
           .update({ status })
           .eq('id', agentId)
           .select()
@@ -71,10 +68,10 @@ export const useAgentsService = () => {
   });
 
   const createAgent = useMutation({
-    mutationFn: async (newAgent: Omit<Agent, 'id'>) => {
+    mutationFn: async (newAgent: Omit<Agent, 'id' | 'created_at'>) => {
       try {
-        const { data, error } = await (supabase
-          .from('agents') as any)
+        const { data, error } = await supabase
+          .from('agents')
           .insert([newAgent])
           .select()
           .single();
@@ -103,8 +100,8 @@ export const useAgentsService = () => {
   const deleteAgent = useMutation({
     mutationFn: async (agentId: string) => {
       try {
-        const { error } = await (supabase
-          .from('agents') as any)
+        const { error } = await supabase
+          .from('agents')
           .delete()
           .eq('id', agentId);
 

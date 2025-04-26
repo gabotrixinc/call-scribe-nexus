@@ -1,7 +1,7 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { Database } from '@/integrations/supabase/types';
 
 export interface Call {
   id: string;
@@ -26,13 +26,13 @@ export const useCallsService = () => {
     queryKey: ['calls', 'active'],
     queryFn: async () => {
       try {
-        const { data, error } = await (supabase
-          .from('calls') as any)
+        const { data, error } = await supabase
+          .from('calls')
           .select('*')
           .eq('status', 'active');
 
         if (error) throw error;
-        return data as Call[];
+        return data;
       } catch (error) {
         console.error('Error fetching active calls:', error);
         toast({
@@ -42,6 +42,45 @@ export const useCallsService = () => {
         });
         return [];
       }
+    }
+  });
+
+  const startCall = useMutation({
+    mutationFn: async (callData: Partial<Call>) => {
+      try {
+        const { error: twilioError } = await supabase.functions.invoke('make-call', {
+          body: { 
+            phoneNumber: callData.caller_number,
+            agentId: callData.ai_agent_id || callData.human_agent_id
+          }
+        });
+
+        if (twilioError) throw twilioError;
+
+        const { data, error } = await supabase
+          .from('calls')
+          .insert([{ ...callData, status: 'active' }])
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error starting call:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudo iniciar la llamada',
+          variant: 'destructive'
+        });
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calls'] });
+      toast({
+        title: 'Llamada iniciada',
+        description: 'La llamada se ha iniciado correctamente'
+      });
     }
   });
 
@@ -91,36 +130,6 @@ export const useCallsService = () => {
         });
         return [];
       }
-    }
-  });
-
-  const startCall = useMutation({
-    mutationFn: async (callData: Partial<Call>) => {
-      try {
-        const { data, error } = await (supabase
-          .from('calls') as any)
-          .insert([{ ...callData, status: 'active' }])
-          .select()
-          .single();
-
-        if (error) throw error;
-        return data;
-      } catch (error) {
-        console.error('Error starting call:', error);
-        toast({
-          title: 'Error',
-          description: 'No se pudo iniciar la llamada',
-          variant: 'destructive'
-        });
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['calls'] });
-      toast({
-        title: 'Llamada iniciada',
-        description: 'La llamada se ha iniciado correctamente'
-      });
     }
   });
 

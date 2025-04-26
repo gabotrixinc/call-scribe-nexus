@@ -9,7 +9,206 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      agents: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          prompt_template: string | null
+          specialization: string | null
+          status: string
+          type: string
+          voice_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          prompt_template?: string | null
+          specialization?: string | null
+          status: string
+          type: string
+          voice_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          prompt_template?: string | null
+          specialization?: string | null
+          status?: string
+          type?: string
+          voice_id?: string | null
+        }
+        Relationships: []
+      }
+      calls: {
+        Row: {
+          ai_agent_id: string | null
+          caller_name: string | null
+          caller_number: string
+          created_at: string | null
+          duration: number | null
+          end_time: string | null
+          human_agent_id: string | null
+          id: string
+          intent: string | null
+          recording_url: string | null
+          sentiment_score: number | null
+          start_time: string
+          status: string
+          transcript: string | null
+          twilio_call_sid: string | null
+        }
+        Insert: {
+          ai_agent_id?: string | null
+          caller_name?: string | null
+          caller_number: string
+          created_at?: string | null
+          duration?: number | null
+          end_time?: string | null
+          human_agent_id?: string | null
+          id?: string
+          intent?: string | null
+          recording_url?: string | null
+          sentiment_score?: number | null
+          start_time?: string
+          status: string
+          transcript?: string | null
+          twilio_call_sid?: string | null
+        }
+        Update: {
+          ai_agent_id?: string | null
+          caller_name?: string | null
+          caller_number?: string
+          created_at?: string | null
+          duration?: number | null
+          end_time?: string | null
+          human_agent_id?: string | null
+          id?: string
+          intent?: string | null
+          recording_url?: string | null
+          sentiment_score?: number | null
+          start_time?: string
+          status?: string
+          transcript?: string | null
+          twilio_call_sid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calls_ai_agent_id_fkey"
+            columns: ["ai_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calls_human_agent_id_fkey"
+            columns: ["human_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_metrics: {
+        Row: {
+          call_id: string | null
+          id: string
+          metric_type: string
+          notes: string | null
+          timestamp: string
+          value: number
+        }
+        Insert: {
+          call_id?: string | null
+          id?: string
+          metric_type: string
+          notes?: string | null
+          timestamp?: string
+          value: number
+        }
+        Update: {
+          call_id?: string | null
+          id?: string
+          metric_type?: string
+          notes?: string | null
+          timestamp?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_metrics_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "calls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      settings: {
+        Row: {
+          analytics_enabled: boolean
+          company_name: string
+          default_greeting: string
+          default_language: string
+          default_voice: string
+          gemini_api_key: string | null
+          google_project_id: string | null
+          id: string
+          notifications_enabled: boolean
+          pitch: number
+          speaking_rate: number
+          timezone: string
+          tts_api_key: string | null
+          twilio_account_sid: string | null
+          twilio_auth_token: string | null
+          twilio_phone_number: string | null
+          webhook_secret: string | null
+          webhook_urls: Json | null
+        }
+        Insert: {
+          analytics_enabled?: boolean
+          company_name?: string
+          default_greeting?: string
+          default_language?: string
+          default_voice?: string
+          gemini_api_key?: string | null
+          google_project_id?: string | null
+          id: string
+          notifications_enabled?: boolean
+          pitch?: number
+          speaking_rate?: number
+          timezone?: string
+          tts_api_key?: string | null
+          twilio_account_sid?: string | null
+          twilio_auth_token?: string | null
+          twilio_phone_number?: string | null
+          webhook_secret?: string | null
+          webhook_urls?: Json | null
+        }
+        Update: {
+          analytics_enabled?: boolean
+          company_name?: string
+          default_greeting?: string
+          default_language?: string
+          default_voice?: string
+          gemini_api_key?: string | null
+          google_project_id?: string | null
+          id?: string
+          notifications_enabled?: boolean
+          pitch?: number
+          speaking_rate?: number
+          timezone?: string
+          tts_api_key?: string | null
+          twilio_account_sid?: string | null
+          twilio_auth_token?: string | null
+          twilio_phone_number?: string | null
+          webhook_secret?: string | null
+          webhook_urls?: Json | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -1,25 +1,10 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { Database } from '@/integrations/supabase/types';
 
-export interface Settings {
-  id: string;
-  company_name: string;
-  timezone: string;
-  default_language: string;
-  analytics_enabled: boolean;
-  notifications_enabled: boolean;
-  gemini_api_key: string | null;
-  tts_api_key: string | null;
-  google_project_id: string | null;
-  default_voice: string;
-  speaking_rate: number;
-  pitch: number;
-  default_greeting: string;
-  webhook_urls: Record<string, string> | null;
-  webhook_secret: string | null;
-}
+type SettingsRow = Database['public']['Tables']['settings']['Row'];
+export type Settings = SettingsRow;
 
 export const useSettingsService = () => {
   const queryClient = useQueryClient();
@@ -35,7 +20,7 @@ export const useSettingsService = () => {
           .single();
 
         if (error) throw error;
-        return data as Settings;
+        return data;
       } catch (error) {
         console.error('Error fetching settings:', error);
         toast({
