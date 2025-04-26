@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -5,6 +6,12 @@ import { Database } from '@/integrations/supabase/types';
 
 type SettingsRow = Database['public']['Tables']['settings']['Row'];
 export type Settings = SettingsRow;
+
+export type WebhookUrls = {
+  call_start?: string;
+  call_end?: string;
+  escalation?: string;
+};
 
 export const useSettingsService = () => {
   const queryClient = useQueryClient();

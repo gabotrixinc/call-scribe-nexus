@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PhoneCall, MessageSquare, User, Play, SkipForward, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { useCallsService, Call } from '@/hooks/useCallsService';
+import { useCallsService, Call, CallStatus } from '@/hooks/useCallsService';
 
 const ActiveCallsList: React.FC = () => {
   const { activeCalls, isLoadingActiveCalls, endCall, abandonCall } = useCallsService();
@@ -39,7 +38,7 @@ const ActiveCallsList: React.FC = () => {
     }
   };
   
-  const getStatusColor = (status: Call["status"]) => {
+  const getStatusColor = (status: CallStatus) => {
     switch (status) {
       case "active":
         return "bg-green-500";
@@ -113,7 +112,7 @@ const ActiveCallsList: React.FC = () => {
                     <tr key={call.id} className="border-b transition-colors hover:bg-muted/50">
                       <td className="p-4 align-middle">
                         <div className="flex items-center gap-2">
-                          <div className={`h-2 w-2 rounded-full ${getStatusColor(call.status)}`}></div>
+                          <div className={`h-2 w-2 rounded-full ${getStatusColor(call.status as CallStatus)}`}></div>
                           <span className="capitalize">
                             {call.status === "active" ? "Activa" : 
                             call.status === "queued" ? "En espera" : call.status}

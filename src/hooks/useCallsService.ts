@@ -1,13 +1,16 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
+export type CallStatus = 'active' | 'queued' | 'completed' | 'abandoned';
+
 export interface Call {
   id: string;
   caller_number: string;
   caller_name: string | null;
-  status: 'active' | 'queued' | 'completed' | 'abandoned';
+  status: CallStatus;
   start_time: string;
   end_time: string | null;
   duration: number | null;
@@ -46,7 +49,13 @@ export const useCallsService = () => {
   });
 
   const startCall = useMutation({
-    mutationFn: async (callData: Partial<Call>) => {
+    mutationFn: async (callData: {
+      caller_number: string;
+      caller_name?: string | null;
+      ai_agent_id?: string | null;
+      human_agent_id?: string | null;
+      start_time: string;
+    }) => {
       try {
         const { error: twilioError } = await supabase.functions.invoke('make-call', {
           body: { 
@@ -57,9 +66,19 @@ export const useCallsService = () => {
 
         if (twilioError) throw twilioError;
 
+        // Define el objeto con los campos requeridos
+        const newCall = {
+          caller_number: callData.caller_number,
+          caller_name: callData.caller_name || null,
+          status: 'active' as CallStatus,
+          start_time: callData.start_time,
+          ai_agent_id: callData.ai_agent_id || null,
+          human_agent_id: callData.human_agent_id || null
+        };
+
         const { data, error } = await supabase
           .from('calls')
-          .insert([{ ...callData, status: 'active' }])
+          .insert([newCall])
           .select()
           .single();
 
@@ -88,8 +107,8 @@ export const useCallsService = () => {
     queryKey: ['calls', 'metrics'],
     queryFn: async () => {
       try {
-        const { data, error } = await (supabase
-          .from('quality_metrics') as any)
+        const { data, error } = await supabase
+          .from('quality_metrics')
           .select('*')
           .order('timestamp', { ascending: false })
           .limit(100);
@@ -112,8 +131,8 @@ export const useCallsService = () => {
     queryKey: ['calls', 'completed'],
     queryFn: async () => {
       try {
-        const { data, error } = await (supabase
-          .from('calls') as any)
+        const { data, error } = await supabase
+          .from('calls')
           .select('*')
           .eq('status', 'completed')
           .order('end_time', { ascending: false })
@@ -136,10 +155,10 @@ export const useCallsService = () => {
   const endCall = useMutation({
     mutationFn: async (callId: string) => {
       try {
-        const { data, error } = await (supabase
-          .from('calls') as any)
+        const { data, error } = await supabase
+          .from('calls')
           .update({
-            status: 'completed',
+            status: 'completed' as CallStatus,
             end_time: new Date().toISOString(),
             duration: 300 // placeholder duration in seconds
           })
@@ -171,10 +190,10 @@ export const useCallsService = () => {
   const abandonCall = useMutation({
     mutationFn: async (callId: string) => {
       try {
-        const { data, error } = await (supabase
-          .from('calls') as any)
+        const { data, error } = await supabase
+          .from('calls')
           .update({
-            status: 'abandoned',
+            status: 'abandoned' as CallStatus,
             end_time: new Date().toISOString()
           })
           .eq('id', callId)

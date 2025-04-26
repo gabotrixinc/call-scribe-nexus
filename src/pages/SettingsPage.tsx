@@ -1,8 +1,6 @@
-
 import React, { useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -17,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from '@/components/ui/use-toast';
 import { Settings, Key, MessageSquare, Phone, Loader2 } from 'lucide-react';
-import { useSettingsService } from '@/hooks/useSettingsService';
+import { useSettingsService, WebhookUrls } from '@/hooks/useSettingsService';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 
@@ -79,7 +77,8 @@ const SettingsPage: React.FC = () => {
         default_greeting: settings.default_greeting || '',
       });
 
-      const webhookUrls = settings.webhook_urls || {};
+      const webhookUrls = (settings.webhook_urls as WebhookUrls) || {};
+      
       webhookForm.reset({
         call_start_url: webhookUrls.call_start || '',
         call_end_url: webhookUrls.call_end || '',
@@ -139,7 +138,7 @@ const SettingsPage: React.FC = () => {
 
   const handleSaveWebhooks = async (data: any) => {
     try {
-      const webhookUrls = {
+      const webhookUrls: WebhookUrls = {
         call_start: data.call_start_url,
         call_end: data.call_end_url,
         escalation: data.escalation_url,

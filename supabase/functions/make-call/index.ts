@@ -1,6 +1,5 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { Twilio } from 'npm:twilio@4.21.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,7 +18,11 @@ serve(async (req) => {
       throw new Error('Phone number is required')
     }
 
-    const client = new Twilio(
+    // Import Twilio directly to avoid the named export issue
+    const twilioModule = await import('npm:twilio@4.21.0')
+    const twilio = twilioModule.default
+    
+    const client = twilio(
       Deno.env.get('TWILIO_ACCOUNT_SID'),
       Deno.env.get('TWILIO_AUTH_TOKEN')
     )
