@@ -37,14 +37,14 @@ const CallQualityChart: React.FC = () => {
     if (!callMetrics) return [];
 
     const metricGroups = callMetrics.reduce((acc: any, metric: any) => {
-      if (!acc[metric.metric_name]) {
-        acc[metric.metric_name] = {
+      if (!acc[metric.metric_type]) {
+        acc[metric.metric_type] = {
           total: 0,
           count: 0
         };
       }
-      acc[metric.metric_name].total += metric.score;
-      acc[metric.metric_name].count += 1;
+      acc[metric.metric_type].total += metric.value;
+      acc[metric.metric_type].count += 1;
       return acc;
     }, {});
 

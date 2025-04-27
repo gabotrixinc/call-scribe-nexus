@@ -10,7 +10,7 @@ export const useCallMetrics = () => {
     queryFn: async () => {
       try {
         const { data, error } = await supabase
-          .from('call_metrics')
+          .from('quality_metrics')
           .select('*')
           .order('timestamp', { ascending: false })
           .limit(50);
