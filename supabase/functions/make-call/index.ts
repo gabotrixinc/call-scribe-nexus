@@ -13,10 +13,16 @@ serve(async (req) => {
   }
 
   try {
-    const { phoneNumber, agentId } = await req.json()
+    const { phoneNumber, agentId, testMode = false } = await req.json()
 
     if (!phoneNumber) {
       throw new Error('Número de teléfono requerido')
+    }
+
+    // Validar el formato del número de teléfono (debe comenzar con + y tener al menos 8 dígitos)
+    const phoneRegex = /^\+\d{8,15}$/
+    if (!phoneRegex.test(phoneNumber)) {
+      throw new Error(`Formato de número inválido: ${phoneNumber}. Debe comenzar con + y tener entre 8 y 15 dígitos.`)
     }
 
     // Verificar si las credenciales están configuradas
@@ -40,35 +46,58 @@ serve(async (req) => {
 
     console.log(`Realizando llamada a: ${phoneNumber} desde: ${twilioPhone}`)
     
+    // Modo de prueba para verificar la conexión sin hacer una llamada real
+    if (testMode) {
+      // Simulación para pruebas
+      console.log('Modo de prueba: Simulando llamada exitosa')
+      return new Response(
+        JSON.stringify({ success: true, callSid: `TEST_SID_${Date.now()}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
     // Importar Twilio directamente para evitar el problema con las exportaciones nombradas
     const twilioModule = await import('npm:twilio@4.21.0')
     const twilio = twilioModule.default
     
     const client = twilio(accountSid, authToken)
 
-    // Modo de prueba para verificar la conexión sin hacer una llamada real
-    const testMode = false // Cambiar a false para hacer llamadas reales
-
-    let callSid = null
-    if (testMode) {
-      // Simulación para pruebas
-      console.log('Modo de prueba: Simulando llamada exitosa')
-      callSid = `TEST_SID_${Date.now()}`
-    } else {
-      // Realizar la llamada real
+    try {
+      // Intentar realizar la llamada real
       const call = await client.calls.create({
         url: 'http://demo.twilio.com/docs/voice.xml', // URL para instrucciones TwiML
         to: phoneNumber,
         from: twilioPhone,
       })
-      callSid = call.sid
+      
       console.log(`Llamada iniciada con SID: ${call.sid}`)
+      
+      return new Response(
+        JSON.stringify({ success: true, callSid: call.sid }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    } catch (twilioError) {
+      console.error('Error de Twilio:', twilioError)
+      
+      // Extraer detalles específicos del error de Twilio
+      const errorDetails = {
+        code: twilioError.code || 'Desconocido',
+        message: twilioError.message || 'Error desconocido',
+        moreInfo: twilioError.moreInfo || null
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Error de Twilio: ${errorDetails.message}`,
+          details: errorDetails
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
-
-    return new Response(
-      JSON.stringify({ success: true, callSid: callSid }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
   } catch (error) {
     console.error('Error al realizar llamada:', error)
     return new Response(
