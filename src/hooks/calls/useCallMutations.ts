@@ -13,14 +13,21 @@ export const useCallMutations = () => {
       ai_agent_id?: string | null;
       human_agent_id?: string | null;
       start_time: string;
+      test_mode?: boolean;
     }) => {
       try {
         console.log(`Iniciando llamada a: ${callData.caller_number}`);
         
+        const testMode = callData.test_mode || false;
+        if (testMode) {
+          console.log('Modo de prueba activado para llamadas');
+        }
+        
         const { data: twilioData, error: twilioError } = await supabase.functions.invoke('make-call', {
           body: { 
             phoneNumber: callData.caller_number,
-            agentId: callData.ai_agent_id || callData.human_agent_id
+            agentId: callData.ai_agent_id || callData.human_agent_id,
+            testMode
           }
         });
 
@@ -35,6 +42,15 @@ export const useCallMutations = () => {
         }
         
         console.log('Respuesta de Twilio:', twilioData);
+
+        if (testMode) {
+          return {
+            id: 'test-call-id',
+            caller_number: callData.caller_number,
+            status: 'test',
+            test_mode: true
+          };
+        }
 
         const newCall: CallInsert = {
           caller_number: callData.caller_number,
@@ -63,11 +79,11 @@ export const useCallMutations = () => {
         console.error('Error starting call:', error);
         let errorMessage = 'No se pudo iniciar la llamada';
         
-        if (error.message && error.message.includes('Twilio')) {
+        if (error.message) {
           errorMessage = error.message;
           
           if (error.message.includes('21215')) {
-            errorMessage = 'Error de Twilio: El número no está verificado o no tiene permisos para realizar llamadas.';
+            errorMessage = 'Error de Twilio: El número no está verificado o no tiene permisos para realizar llamadas internacionales.';
           } else if (error.message.includes('20003')) {
             errorMessage = 'Error de Twilio: Autenticación fallida. Verifique las credenciales de Twilio.';
           } else if (error.message.includes('21606')) {
@@ -75,7 +91,7 @@ export const useCallMutations = () => {
           } else if (error.message.includes('13214')) {
             errorMessage = 'Error de Twilio: Error de configuración TwiML. Verifique la URL de TwiML.';
           } else if (error.message.includes('non-2xx status code')) {
-            errorMessage = 'Error de conexión con Twilio. Verifique los secretos y la configuración.';
+            errorMessage = 'Error de conexión con el servicio. Verifique los secretos y la configuración.';
           }
         }
         
@@ -87,12 +103,19 @@ export const useCallMutations = () => {
         throw error;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['calls'] });
-      toast({
-        title: 'Llamada iniciada',
-        description: 'La llamada se ha iniciado correctamente'
-      });
+    onSuccess: (data) => {
+      if (!data.test_mode) {
+        queryClient.invalidateQueries({ queryKey: ['calls'] });
+        toast({
+          title: 'Llamada iniciada',
+          description: 'La llamada se ha iniciado correctamente'
+        });
+      } else {
+        toast({
+          title: 'Prueba exitosa',
+          description: 'La conexión con Twilio funciona correctamente'
+        });
+      }
     }
   });
 
