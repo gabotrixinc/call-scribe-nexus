@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mic, MicOff, Loader2 } from 'lucide-react';
@@ -26,7 +25,6 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
   const socketRef = useRef<WebSocket | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
-  // Scroll to bottom when transcript updates
   useEffect(() => {
     if (scrollAreaRef.current) {
       const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
@@ -36,13 +34,11 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
     }
   }, [transcript]);
   
-  // Connect to WebSocket when call becomes active
   useEffect(() => {
     if (isActive && !isConnected && !isConnecting) {
       connectWebSocket();
     }
     
-    // Disconnect when call ends
     if (!isActive && isConnected) {
       disconnectWebSocket();
     }
@@ -57,12 +53,6 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
       setIsConnecting(true);
       setErrorMessage(null);
       
-      // In a real implementation, we would:
-      // 1. Get a backend URL that supports WebSockets
-      // 2. Connect to it and start streaming audio/receiving transcriptions
-      
-      // For demo purposes, we're simulating this behavior
-      // In production, you'd connect to your real transcription service
       const { data } = await supabase.functions.invoke('transcribe-audio', {
         body: { action: 'get-connection-info', callId }
       });
@@ -71,13 +61,10 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
         throw new Error('No se pudo obtener la URL para la transcripción');
       }
       
-      // Simulate connection delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Simulate successful connection
       setIsConnected(true);
       
-      // Add initial transcript entries for demonstration
       setTranscript([
         {
           id: '1',
@@ -87,7 +74,6 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
         }
       ]);
       
-      // Simulate incoming transcriptions
       simulateTranscriptions();
     } catch (error) {
       console.error('Error connecting to transcription service:', error);
@@ -105,7 +91,6 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
     setIsConnected(false);
   };
   
-  // Temporary function to simulate incoming transcription for demo purposes
   const simulateTranscriptions = () => {
     const userPhrases = [
       "Hola, necesito ayuda con mi factura.",
@@ -131,7 +116,6 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
         return;
       }
       
-      // Add user transcript
       setTranscript(prev => [
         ...prev, 
         {
@@ -142,7 +126,6 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
         }
       ]);
       
-      // Add agent response after a delay
       setTimeout(() => {
         if (!isActive) return;
         
@@ -174,7 +157,10 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
           )}
           <span>Transcripción en vivo</span>
           
-          <Badge variant={isConnected ? "success" : "outline"} className="ml-2">
+          <Badge variant={isConnected ? "secondary" : "outline"} className={cn(
+            "ml-2",
+            isConnected && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+          )}>
             {isConnected ? "Conectado" : "Desconectado"}
           </Badge>
         </CardTitle>
