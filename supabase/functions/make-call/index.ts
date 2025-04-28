@@ -48,6 +48,7 @@ serve(async (req) => {
     const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
     const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
     const twilioPhone = Deno.env.get('TWILIO_PHONE_NUMBER')
+    const appUrl = Deno.env.get('APP_URL') || 'https://your-app-url.com'
 
     // Verificación detallada y registros de las credenciales
     console.log('Verificando credenciales de Twilio:')
@@ -89,15 +90,35 @@ serve(async (req) => {
       )
     }
 
+    // Generar TwiML personalizado para la llamada bidireccional
+    const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="es-ES">Bienvenido a nuestro centro de atención. Su llamada está siendo conectada.</Say>
+  <Connect>
+    <Stream url="wss://${appUrl}/stream-audio">
+      <Parameter name="callId" value="{{CALL_SID}}"/>
+      <Parameter name="agentId" value="${agentId || 'no-agent'}"/>
+    </Stream>
+  </Connect>
+  <Dial callerId="${twilioPhone}">
+    <Client>agent-${agentId || 'default'}</Client>
+  </Dial>
+</Response>`;
+
+    // Crear un endpoint temporal para servir el TwiML
+    const twimlUrl = `https://${appUrl}/twilio-response?callId=${Date.now()}`;
+    console.log(`Usando TwiML URL simulada: ${twimlUrl}`);
+    console.log(`TwiML que se usaría: ${twimlResponse}`);
+    
     // Intento directo con la API REST de Twilio en lugar de usar el SDK
-    // Esto puede ayudar a evitar problemas de compatibilidad con Deno
     try {
       console.log('Intentando llamada directamente con la API REST de Twilio');
       
       // URL de la API de Twilio para crear llamadas
       const twilioApiUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json`;
       
-      // Usar URL TwiML estática de Twilio para pruebas
+      // Para este ejemplo, usaremos una URL de TwiML estática, pero en una implementación
+      // real, deberías tener un endpoint que genere TwiML dinámicamente según cada llamada
       const twimlUrl = 'http://demo.twilio.com/docs/voice.xml';
       console.log(`Usando TwiML URL: ${twimlUrl}`);
       

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -16,39 +16,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
-const data = [
-  { time: "00:00", calls: 4 },
-  { time: "01:00", calls: 3 },
-  { time: "02:00", calls: 2 },
-  { time: "03:00", calls: 1 },
-  { time: "04:00", calls: 0 },
-  { time: "05:00", calls: 1 },
-  { time: "06:00", calls: 2 },
-  { time: "07:00", calls: 5 },
-  { time: "08:00", calls: 10 },
-  { time: "09:00", calls: 15 },
-  { time: "10:00", calls: 20 },
-  { time: "11:00", calls: 25 },
-  { time: "12:00", calls: 22 },
-  { time: "13:00", calls: 18 },
-  { time: "14:00", calls: 21 },
-  { time: "15:00", calls: 24 },
-  { time: "16:00", calls: 19 },
-  { time: "17:00", calls: 15 },
-  { time: "18:00", calls: 12 },
-  { time: "19:00", calls: 8 },
-  { time: "20:00", calls: 5 },
-  { time: "21:00", calls: 4 },
-  { time: "22:00", calls: 3 },
-  { time: "23:00", calls: 2 },
-];
+import { useCallsService } from '@/hooks/useCallsService';
+import { format, subHours, addHours, startOfHour } from 'date-fns';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-background p-2 border rounded-md shadow-sm">
-        <p className="text-sm font-medium">{`${label}: ${payload[0].value} calls`}</p>
+        <p className="text-sm font-medium">{`${label}: ${payload[0].value} llamadas`}</p>
       </div>
     );
   }
@@ -57,17 +32,74 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const ActiveCallsChart: React.FC = () => {
+  const { completedCalls, activeCalls } = useCallsService();
+  const [callData, setCallData] = useState<any[]>([]);
+
+  useEffect(() => {
+    const generateTimeSeriesData = () => {
+      const now = new Date();
+      const endHour = startOfHour(now);
+      const startHour = subHours(endHour, 23); // 24 hours of data
+      
+      // Create 24 hours of slots
+      const timeSlots = Array.from({ length: 24 }, (_, i) => {
+        const slotTime = addHours(startHour, i);
+        return {
+          hour: format(slotTime, 'HH:00'),
+          timestamp: slotTime,
+          calls: 0
+        };
+      });
+      
+      // Fill in data from completed calls
+      if (completedCalls && completedCalls.length > 0) {
+        completedCalls.forEach(call => {
+          const callTime = new Date(call.start_time);
+          const hourIndex = timeSlots.findIndex(slot => {
+            return callTime >= slot.timestamp && 
+                  callTime < addHours(slot.timestamp, 1);
+          });
+          
+          if (hourIndex !== -1) {
+            timeSlots[hourIndex].calls++;
+          }
+        });
+      }
+      
+      // Add active calls to the current hour
+      const currentHourIndex = timeSlots.length - 1;
+      if (activeCalls && activeCalls.length > 0) {
+        timeSlots[currentHourIndex].calls += activeCalls.length;
+      }
+      
+      return timeSlots.map(slot => ({
+        time: slot.hour,
+        calls: slot.calls
+      }));
+    };
+    
+    const data = generateTimeSeriesData();
+    setCallData(data);
+    
+    // Update every minute
+    const interval = setInterval(() => {
+      setCallData(generateTimeSeriesData());
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, [completedCalls, activeCalls]);
+
   return (
     <Card className="col-span-full xl:col-span-6">
       <CardHeader>
-        <CardTitle>Call Volume (24h)</CardTitle>
-        <CardDescription>Active calls throughout the day</CardDescription>
+        <CardTitle>Volumen de llamadas (24h)</CardTitle>
+        <CardDescription>Llamadas activas durante el día</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
-              data={data}
+              data={callData}
               margin={{
                 top: 5,
                 right: 5,

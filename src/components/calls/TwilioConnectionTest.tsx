@@ -83,7 +83,7 @@ const TwilioConnectionTest = () => {
           <li className="font-medium text-amber-600 dark:text-amber-400">Para llamadas fuera de EE. UU., verificar que tu cuenta tenga permisos internacionales habilitados</li>
         </ul>
         
-        <div className="mt-3">
+        <div className="mt-3 space-y-2">
           <a 
             href="https://www.twilio.com/console/voice/calls/geo-permissions/low-risk" 
             target="_blank"
@@ -92,6 +92,23 @@ const TwilioConnectionTest = () => {
           >
             Configurar permisos geográficos en Twilio <ExternalLink className="ml-1 h-3 w-3" />
           </a>
+          
+          <div className="mt-4 pt-4 border-t border-muted-foreground/20">
+            <h4 className="font-medium mb-2">Configuración para transcripción en tiempo real:</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Cuenta de Google Cloud con API Speech-to-Text habilitada</li>
+              <li>Clave de API de Google configurada en Supabase Edge Functions</li>
+              <li>Configuración de bi-direccionalidad en TwiML para captura de audio</li>
+            </ul>
+            <a 
+              href="https://cloud.google.com/speech-to-text" 
+              target="_blank"
+              rel="noopener noreferrer" 
+              className="flex items-center mt-2 text-primary hover:underline"
+            >
+              Configurar Google Speech-to-Text API <ExternalLink className="ml-1 h-3 w-3" />
+            </a>
+          </div>
         </div>
       </div>
     </div>
