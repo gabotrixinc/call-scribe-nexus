@@ -4,6 +4,7 @@ import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface LiveTranscriptionProps {
   callId: string;
