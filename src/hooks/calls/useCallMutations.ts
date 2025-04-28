@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -16,6 +15,8 @@ export const useCallMutations = () => {
       start_time: string;
     }) => {
       try {
+        console.log(`Iniciando llamada a: ${callData.caller_number}`);
+        
         const { data: twilioData, error: twilioError } = await supabase.functions.invoke('make-call', {
           body: { 
             phoneNumber: callData.caller_number,
@@ -23,8 +24,17 @@ export const useCallMutations = () => {
           }
         });
 
-        if (twilioError) throw new Error(`Error de Twilio: ${twilioError}`);
-        if (!twilioData?.success) throw new Error(twilioData?.error || 'Error al iniciar la llamada');
+        if (twilioError) {
+          console.error('Error invocando la función make-call:', twilioError);
+          throw new Error(`Error de Twilio: ${twilioError.message || 'Error desconocido'}`);
+        }
+        
+        if (!twilioData?.success) {
+          console.error('La función make-call reportó un error:', twilioData?.error || 'Error desconocido');
+          throw new Error(twilioData?.error || 'Error al iniciar la llamada');
+        }
+        
+        console.log('Respuesta de Twilio:', twilioData);
 
         const newCall: CallInsert = {
           caller_number: callData.caller_number,
@@ -42,13 +52,36 @@ export const useCallMutations = () => {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error al insertar la llamada en la base de datos:', error);
+          throw error;
+        }
+        
+        console.log('Llamada registrada en la base de datos:', data);
         return data;
       } catch (error) {
         console.error('Error starting call:', error);
+        let errorMessage = 'No se pudo iniciar la llamada';
+        
+        if (error.message && error.message.includes('Twilio')) {
+          errorMessage = error.message;
+          
+          if (error.message.includes('21215')) {
+            errorMessage = 'Error de Twilio: El número no está verificado o no tiene permisos para realizar llamadas.';
+          } else if (error.message.includes('20003')) {
+            errorMessage = 'Error de Twilio: Autenticación fallida. Verifique las credenciales de Twilio.';
+          } else if (error.message.includes('21606')) {
+            errorMessage = 'Error de Twilio: El número de teléfono de origen no es válido o no está verificado.';
+          } else if (error.message.includes('13214')) {
+            errorMessage = 'Error de Twilio: Error de configuración TwiML. Verifique la URL de TwiML.';
+          } else if (error.message.includes('non-2xx status code')) {
+            errorMessage = 'Error de conexión con Twilio. Verifique los secretos y la configuración.';
+          }
+        }
+        
         toast({
           title: 'Error al iniciar la llamada',
-          description: error.message || 'No se pudo iniciar la llamada',
+          description: errorMessage,
           variant: 'destructive'
         });
         throw error;

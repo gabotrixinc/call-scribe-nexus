@@ -30,18 +30,28 @@ serve(async (req) => {
     const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
     const twilioPhone = Deno.env.get('TWILIO_PHONE_NUMBER')
 
-    // Verificación más detallada de las credenciales
+    // Verificación detallada y registros de las credenciales
+    console.log('Verificando credenciales de Twilio:')
+    
     if (!accountSid) {
       console.error('TWILIO_ACCOUNT_SID no está configurado')
       throw new Error('Credenciales de Twilio no configuradas: Falta ACCOUNT_SID')
+    } else {
+      console.log('TWILIO_ACCOUNT_SID: Configurado correctamente')
     }
+    
     if (!authToken) {
       console.error('TWILIO_AUTH_TOKEN no está configurado')
       throw new Error('Credenciales de Twilio no configuradas: Falta AUTH_TOKEN')
+    } else {
+      console.log('TWILIO_AUTH_TOKEN: Configurado correctamente')
     }
+    
     if (!twilioPhone) {
       console.error('TWILIO_PHONE_NUMBER no está configurado')
       throw new Error('Número de teléfono de Twilio no configurado')
+    } else {
+      console.log(`TWILIO_PHONE_NUMBER: ${twilioPhone} (configurado correctamente)`)
     }
 
     console.log(`Realizando llamada a: ${phoneNumber} desde: ${twilioPhone}`)
@@ -56,41 +66,84 @@ serve(async (req) => {
       )
     }
     
-    // Importar Twilio directamente para evitar el problema con las exportaciones nombradas
-    const twilioModule = await import('npm:twilio@4.21.0')
-    const twilio = twilioModule.default
-    
-    const client = twilio(accountSid, authToken)
-
+    // Importar Twilio directamente
     try {
-      // Intentar realizar la llamada real
-      const call = await client.calls.create({
-        url: 'http://demo.twilio.com/docs/voice.xml', // URL para instrucciones TwiML
-        to: phoneNumber,
-        from: twilioPhone,
-      })
+      const twilioModule = await import('npm:twilio@4.21.0')
+      const twilio = twilioModule.default
       
-      console.log(`Llamada iniciada con SID: ${call.sid}`)
+      console.log('Módulo Twilio importado correctamente')
       
-      return new Response(
-        JSON.stringify({ success: true, callSid: call.sid }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    } catch (twilioError) {
-      console.error('Error de Twilio:', twilioError)
-      
-      // Extraer detalles específicos del error de Twilio
-      const errorDetails = {
-        code: twilioError.code || 'Desconocido',
-        message: twilioError.message || 'Error desconocido',
-        moreInfo: twilioError.moreInfo || null
+      try {
+        const client = twilio(accountSid, authToken)
+        console.log('Cliente Twilio creado correctamente')
+        
+        try {
+          // Usar URL TwiML estática de Twilio para pruebas
+          const twimlUrl = 'http://demo.twilio.com/docs/voice.xml'
+          console.log(`Usando TwiML URL: ${twimlUrl}`)
+          
+          // Intentar realizar la llamada real
+          console.log('Iniciando llamada con Twilio...')
+          const call = await client.calls.create({
+            url: twimlUrl,
+            to: phoneNumber,
+            from: twilioPhone,
+          })
+          
+          console.log(`¡Llamada iniciada con éxito! SID: ${call.sid}`)
+          
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              callSid: call.sid,
+              message: 'Llamada iniciada exitosamente'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        } catch (callError) {
+          console.error('Error al crear la llamada con Twilio:', callError)
+          
+          // Extraer detalles específicos del error de Twilio
+          const errorDetails = {
+            code: callError.code || 'Desconocido',
+            message: callError.message || 'Error desconocido',
+            status: callError.status || 'Desconocido',
+            moreInfo: callError.moreInfo || null
+          }
+          
+          console.error('Detalles del error de Twilio:', JSON.stringify(errorDetails, null, 2))
+          
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `Error de Twilio: ${errorDetails.message}`,
+              details: errorDetails
+            }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          )
+        }
+      } catch (clientError) {
+        console.error('Error al crear el cliente Twilio:', clientError)
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Error al crear el cliente Twilio: ${clientError.message}`
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
       }
-      
+    } catch (importError) {
+      console.error('Error al importar el módulo Twilio:', importError)
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: `Error de Twilio: ${errorDetails.message}`,
-          details: errorDetails
+          error: `Error al importar Twilio: ${importError.message}`
         }),
         { 
           status: 400, 
@@ -99,7 +152,7 @@ serve(async (req) => {
       )
     }
   } catch (error) {
-    console.error('Error al realizar llamada:', error)
+    console.error('Error al procesar la solicitud:', error)
     return new Response(
       JSON.stringify({ 
         error: error.message,
