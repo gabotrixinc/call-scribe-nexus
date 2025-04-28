@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mic, MicOff, Loader2 } from 'lucide-react';
@@ -5,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { useToast } from "@/components/ui/use-toast";
 
 interface LiveTranscriptionProps {
   callId: string;
@@ -25,6 +27,7 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const socketRef = useRef<WebSocket | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
   
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -49,6 +52,82 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
     };
   }, [isActive, isConnected]);
   
+  // Check call status periodically
+  useEffect(() => {
+    if (isActive && callId && callId !== 'test-call-id') {
+      const intervalId = setInterval(() => {
+        checkCallStatus(callId);
+      }, 5000);
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [isActive, callId]);
+  
+  const checkCallStatus = async (callId: string) => {
+    try {
+      // Get Twilio call SID from database
+      const { data: callData, error: callError } = await supabase
+        .from('calls')
+        .select('twilio_call_sid, status')
+        .eq('id', callId)
+        .single();
+      
+      if (callError || !callData) {
+        console.error('Error retrieving call data:', callError);
+        return;
+      }
+      
+      // If call is already marked as completed in our database, disconnect
+      if (callData.status === 'completed') {
+        if (isConnected) {
+          disconnectWebSocket();
+        }
+        return;
+      }
+      
+      const twilioCallSid = callData.twilio_call_sid;
+      if (!twilioCallSid) return;
+      
+      // Check call status with Twilio API
+      const { data } = await supabase.functions.invoke('make-call', {
+        body: { 
+          action: 'check-call-status', 
+          callSid: twilioCallSid 
+        }
+      });
+      
+      // If call is no longer active with Twilio but still active in our database, update it
+      if (data?.success && (data?.status === 'completed' || data?.status === 'failed' || 
+          data?.status === 'busy' || data?.status === 'no-answer' || data?.status === 'canceled')) {
+        
+        console.log(`Call ${callId} has ended on Twilio side, updating database...`);
+        
+        // Update call status in database
+        await supabase
+          .from('calls')
+          .update({
+            status: 'completed',
+            end_time: new Date().toISOString(),
+            duration: data?.duration || 0
+          })
+          .eq('id', callId);
+        
+        // Disconnect WebSocket
+        if (isConnected) {
+          disconnectWebSocket();
+        }
+        
+        // Notify user that call has ended
+        toast({
+          title: "Llamada finalizada",
+          description: "La llamada ha terminado desde el otro lado.",
+        });
+      }
+    } catch (error) {
+      console.error('Error checking call status:', error);
+    }
+  };
+  
   const connectWebSocket = async () => {
     try {
       setIsConnecting(true);
@@ -62,89 +141,111 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
         throw new Error('No se pudo obtener la URL para la transcripción');
       }
       
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const socket = new WebSocket(data.websocketUrl);
+      socketRef.current = socket;
       
-      setIsConnected(true);
+      socket.onopen = () => {
+        console.log('WebSocket connection established');
+        
+        socket.send(JSON.stringify({
+          type: 'init',
+          callId: callId
+        }));
+      };
       
-      setTranscript([
-        {
-          id: '1',
-          text: "Hola, gracias por llamar a nuestro centro de atención.",
-          timestamp: new Date(),
-          speaker: 'agent'
+      socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        
+        if (message.type === 'init-ack') {
+          setIsConnected(true);
+          setIsConnecting(false);
         }
-      ]);
+        else if (message.type === 'transcription') {
+          // Get timestamp if provided, or use current time
+          const timestamp = message.timestamp ? new Date(message.timestamp) : new Date();
+          
+          setTranscript(prev => [...prev, {
+            id: `user-${Date.now()}`,
+            text: message.text,
+            timestamp: timestamp,
+            speaker: 'user'
+          }]);
+          
+          // Simulate agent response 2 seconds later
+          setTimeout(() => {
+            // Generate agent response based on the transcription
+            const agentResponses: Record<string, string> = {
+              'ayuda': 'Con gusto le ayudo. ¿Podría proporcionarme más detalles sobre su consulta?',
+              'cuenta': 'Verificaré los datos de su cuenta inmediatamente. ¿Podría proporcionarme su número de cuenta o identificación?',
+              'factura': 'Entiendo. Revisaré los detalles de su factura. ¿Podría confirmar el mes o período de facturación?',
+              'gracias': 'Es un placer ayudarle. ¿Puedo asistirle con algo más?',
+              'problema': 'Lamento los inconvenientes. Vamos a analizar el problema para ofrecerle una solución adecuada.'
+            };
+            
+            // Find keywords in the transcription
+            let agentResponse = 'Entiendo su consulta. ¿Podría proporcionarme más información para ayudarle mejor?';
+            
+            const normalizedText = message.text.toLowerCase();
+            
+            Object.keys(agentResponses).forEach(keyword => {
+              if (normalizedText.includes(keyword)) {
+                agentResponse = agentResponses[keyword];
+              }
+            });
+            
+            setTranscript(prev => [...prev, {
+              id: `agent-${Date.now()}`,
+              text: agentResponse,
+              timestamp: new Date(),
+              speaker: 'agent'
+            }]);
+          }, 2000);
+        }
+        else if (message.type === 'error') {
+          setErrorMessage(message.error);
+          setIsConnecting(false);
+        }
+      };
       
-      simulateTranscriptions();
+      socket.onclose = (event) => {
+        console.log(`WebSocket closed: ${event.code} ${event.reason}`);
+        setIsConnected(false);
+      };
+      
+      socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setErrorMessage('Error en la conexión de WebSocket');
+        setIsConnected(false);
+        setIsConnecting(false);
+      };
     } catch (error) {
       console.error('Error connecting to transcription service:', error);
       setErrorMessage(`No se pudo conectar al servicio de transcripción: ${error.message}`);
-    } finally {
       setIsConnecting(false);
     }
   };
   
   const disconnectWebSocket = () => {
     if (socketRef.current) {
-      socketRef.current.close();
-      socketRef.current = null;
-    }
-    setIsConnected(false);
-  };
-  
-  const simulateTranscriptions = () => {
-    const userPhrases = [
-      "Hola, necesito ayuda con mi factura.",
-      "Mi número de cuenta es 12345.",
-      "No entiendo por qué me están cobrando este cargo.",
-      "¿Podrían revisarlo por favor?",
-      "Gracias por la información."
-    ];
-    
-    const agentPhrases = [
-      "Con gusto le ayudo. ¿Podría proporcionarme su número de cuenta?",
-      "Déjeme revisar esa información para usted.",
-      "Entiendo su preocupación, estoy verificando los detalles.",
-      "Encontré el problema. Parece haber un cargo duplicado.",
-      "He procesado el reembolso. Debería reflejarse en 3-5 días hábiles."
-    ];
-    
-    let counter = 0;
-    
-    const interval = setInterval(() => {
-      if (counter >= 5 || !isActive) {
-        clearInterval(interval);
-        return;
+      if (socketRef.current.readyState === WebSocket.OPEN) {
+        // Notify server that call is ending
+        socketRef.current.send(JSON.stringify({
+          type: 'call-ended',
+          callId: callId
+        }));
       }
       
-      setTranscript(prev => [
-        ...prev, 
-        {
-          id: `user-${Date.now()}`,
-          text: userPhrases[counter],
-          timestamp: new Date(),
-          speaker: 'user'
-        }
-      ]);
-      
+      // Close after a brief delay to ensure message is sent
       setTimeout(() => {
-        if (!isActive) return;
-        
-        setTranscript(prev => [
-          ...prev, 
-          {
-            id: `agent-${Date.now()}`,
-            text: agentPhrases[counter],
-            timestamp: new Date(),
-            speaker: 'agent'
-          }
-        ]);
-      }, 2000);
-      
-      counter++;
-    }, 5000);
-    
-    return () => clearInterval(interval);
+        if (socketRef.current) {
+          socketRef.current.close();
+          socketRef.current = null;
+        }
+        setIsConnected(false);
+      }, 500);
+    } else {
+      setIsConnected(false);
+    }
   };
 
   return (

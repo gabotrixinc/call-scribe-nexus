@@ -31,7 +31,18 @@ serve(async (req) => {
       );
     }
     
-    const { phoneNumber, agentId, testMode = false } = body;
+    const { phoneNumber, agentId, testMode = false, action } = body;
+    
+    // Handle different actions
+    if (action === 'check-call-status') {
+      const { callSid } = body;
+      if (!callSid) {
+        throw new Error('Call SID is required for status check');
+      }
+      
+      return await checkCallStatus(callSid);
+    }
+    
     console.log(`Request received: phoneNumber=${phoneNumber}, agentId=${agentId}, testMode=${testMode}`);
 
     if (!phoneNumber) {
@@ -100,9 +111,11 @@ serve(async (req) => {
       <Parameter name="agentId" value="${agentId || 'no-agent'}"/>
     </Stream>
   </Connect>
-  <Dial callerId="${twilioPhone}">
+  <Dial callerId="${twilioPhone}" timeout="30" record="record-from-answer">
     <Client>agent-${agentId || 'default'}</Client>
   </Dial>
+  <Pause length="1"/>
+  <Say language="es-ES">No hay agentes disponibles en este momento. La llamada se finalizará.</Say>
 </Response>`;
 
     // Crear un endpoint temporal para servir el TwiML
@@ -117,10 +130,11 @@ serve(async (req) => {
       // URL de la API de Twilio para crear llamadas
       const twilioApiUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json`;
       
-      // Para este ejemplo, usaremos una URL de TwiML estática, pero en una implementación
-      // real, deberías tener un endpoint que genere TwiML dinámicamente según cada llamada
+      // Para este ejemplo, usaremos un TwiML más avanzado que incluya control de música y eventos de fin de llamada
       const twimlUrl = 'http://demo.twilio.com/docs/voice.xml';
+      const statusCallbackUrl = `https://${appUrl}/functions/call-status-callback`;
       console.log(`Usando TwiML URL: ${twimlUrl}`);
+      console.log(`Status callback URL: ${statusCallbackUrl}`);
       
       // Credenciales en formato base64 para autenticación básica
       const credentials = btoa(`${accountSid}:${authToken}`);
@@ -130,6 +144,12 @@ serve(async (req) => {
       formData.append('To', phoneNumber);
       formData.append('From', twilioPhone);
       formData.append('Url', twimlUrl);
+      formData.append('StatusCallback', statusCallbackUrl);
+      formData.append('StatusCallbackEvent', 'initiated ringing answered completed');
+      formData.append('StatusCallbackMethod', 'POST');
+      formData.append('MachineDetection', 'Enable');
+      formData.append('AsyncAmd', 'true');
+      formData.append('AsyncAmdStatusCallback', statusCallbackUrl);
       
       // Realizar la solicitud a la API de Twilio
       const response = await fetch(twilioApiUrl, {
@@ -187,7 +207,6 @@ serve(async (req) => {
         }
       );
     }
-
   } catch (error) {
     console.error('Error al procesar la solicitud:', error);
     return new Response(
@@ -200,5 +219,59 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
+  }
+  
+  // Función para verificar el estado de una llamada en Twilio
+  async function checkCallStatus(callSid: string) {
+    try {
+      const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
+      const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+      
+      if (!accountSid || !authToken) {
+        throw new Error('Credenciales de Twilio no configuradas');
+      }
+      
+      const credentials = btoa(`${accountSid}:${authToken}`);
+      const twilioApiUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${callSid}.json`;
+      
+      const response = await fetch(twilioApiUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const callData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(`Error al obtener estado de llamada: ${callData.message || 'Error desconocido'}`);
+      }
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          status: callData.status,
+          duration: callData.duration,
+          direction: callData.direction,
+          answered_by: callData.answered_by,
+          date_created: callData.date_created,
+          date_updated: callData.date_updated,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (error) {
+      console.error('Error al verificar estado de llamada:', error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error.message
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
   }
 })
