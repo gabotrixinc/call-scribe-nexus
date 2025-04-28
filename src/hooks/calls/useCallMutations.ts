@@ -1,3 +1,4 @@
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -44,11 +45,12 @@ export const useCallMutations = () => {
         console.log('Respuesta de Twilio:', twilioData);
 
         if (testMode) {
+          // Return a test object with explicit type that includes test_mode
           return {
             id: 'test-call-id',
             caller_number: callData.caller_number,
             status: 'test',
-            test_mode: true
+            test_mode: true as const // Using const assertion to clarify the type
           };
         }
 
@@ -104,16 +106,17 @@ export const useCallMutations = () => {
       }
     },
     onSuccess: (data) => {
-      if (!data.test_mode) {
+      // Type guard to check if the response is from test mode
+      if ('test_mode' in data && data.test_mode === true) {
+        toast({
+          title: 'Prueba exitosa',
+          description: 'La conexión con Twilio funciona correctamente'
+        });
+      } else {
         queryClient.invalidateQueries({ queryKey: ['calls'] });
         toast({
           title: 'Llamada iniciada',
           description: 'La llamada se ha iniciado correctamente'
-        });
-      } else {
-        toast({
-          title: 'Prueba exitosa',
-          description: 'La conexión con Twilio funciona correctamente'
         });
       }
     }
