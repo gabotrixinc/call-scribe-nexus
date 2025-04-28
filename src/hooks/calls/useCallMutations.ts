@@ -84,8 +84,9 @@ export const useCallMutations = () => {
         if (error.message) {
           errorMessage = error.message;
           
+          // Mejorar los mensajes de error específicos de Twilio
           if (error.message.includes('21215')) {
-            errorMessage = 'Error de Twilio: El número no está verificado o no tiene permisos para realizar llamadas internacionales.';
+            errorMessage = 'Error de Twilio: El número no está autorizado para llamadas internacionales. Debe habilitar permisos geográficos en su cuenta de Twilio: https://www.twilio.com/console/voice/calls/geo-permissions/low-risk';
           } else if (error.message.includes('20003')) {
             errorMessage = 'Error de Twilio: Autenticación fallida. Verifique las credenciales de Twilio.';
           } else if (error.message.includes('21606')) {
@@ -93,7 +94,7 @@ export const useCallMutations = () => {
           } else if (error.message.includes('13214')) {
             errorMessage = 'Error de Twilio: Error de configuración TwiML. Verifique la URL de TwiML.';
           } else if (error.message.includes('non-2xx status code')) {
-            errorMessage = 'Error de conexión con el servicio. Verifique los secretos y la configuración.';
+            errorMessage = 'Error de conexión con el servicio. Revise los logs de la Edge Function para más detalles.';
           }
         }
         

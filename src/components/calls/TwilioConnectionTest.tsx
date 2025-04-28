@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 import { useCallsService } from '@/hooks/useCallsService';
 
 const TwilioConnectionTest = () => {
@@ -79,9 +79,20 @@ const TwilioConnectionTest = () => {
           <li>Cuenta de Twilio activa con fondos suficientes</li>
           <li>Account SID y Auth Token configurados en Supabase Edge Functions</li>
           <li>Número de teléfono de Twilio comprado y configurado</li>
-          <li>Permisos geográficos habilitados para los países a los que deseas llamar</li>
-          <li>Para llamadas fuera de EE. UU., verificar que tu cuenta tenga permisos internacionales</li>
+          <li className="font-medium text-amber-600 dark:text-amber-400">Permisos geográficos habilitados para los países a los que deseas llamar</li>
+          <li className="font-medium text-amber-600 dark:text-amber-400">Para llamadas fuera de EE. UU., verificar que tu cuenta tenga permisos internacionales habilitados</li>
         </ul>
+        
+        <div className="mt-3">
+          <a 
+            href="https://www.twilio.com/console/voice/calls/geo-permissions/low-risk" 
+            target="_blank"
+            rel="noopener noreferrer" 
+            className="flex items-center text-primary hover:underline"
+          >
+            Configurar permisos geográficos en Twilio <ExternalLink className="ml-1 h-3 w-3" />
+          </a>
+        </div>
       </div>
     </div>
   );
