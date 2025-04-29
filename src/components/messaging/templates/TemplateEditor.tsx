@@ -58,7 +58,7 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({
           rows={6}
         />
         <p className="text-xs text-muted-foreground">
-          Use {{variable}} para definir variables que se pueden reemplazar.
+          Use {'{{'}<span>variable</span>{'}}'} para definir variables que se pueden reemplazar.
         </p>
       </div>
       
