@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { Search, Loader2 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Check, Clock, X } from 'lucide-react';
 import { MessageTemplate } from '@/types/messaging';
+import TemplateSearch from './TemplateSearch';
 
 interface TemplateListProps {
   templates: MessageTemplate[];
@@ -26,15 +26,6 @@ const TemplateList: React.FC<TemplateListProps> = ({
   isLoading,
   activeCategory,
 }) => {
-  const filteredTemplates = templates.filter((template) => {
-    const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      template.content.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = activeCategory === 'all' || template.category === activeCategory;
-    
-    return matchesSearch && matchesCategory;
-  });
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
@@ -70,23 +61,18 @@ const TemplateList: React.FC<TemplateListProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar plantillas..."
-          className="pl-8"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+      <TemplateSearch
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+      />
       
       <ScrollArea className="h-[500px] border rounded-md">
-        {filteredTemplates.length === 0 ? (
+        {templates.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground">
             No se encontraron plantillas
           </div>
         ) : (
-          filteredTemplates.map((template) => (
+          templates.map((template) => (
             <div
               key={template.id}
               className={`p-3 cursor-pointer border-b last:border-b-0 ${
