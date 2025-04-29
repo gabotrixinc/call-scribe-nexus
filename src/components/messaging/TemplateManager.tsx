@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -490,17 +491,17 @@ const TemplateManager = () => {
                       
                       {editedTemplate.variables.length > 0 ? (
                         <div className="space-y-4">
-                          {editedTemplate.variables.map((variable, index) => (
+                          {editedTemplate.variables.map((variableItem, index) => (
                             <div key={index} className="grid grid-cols-3 gap-2 items-center">
                               <Input
-                                value={variable.name}
+                                value={variableItem.name}
                                 onChange={(e) =>
                                   handleVariableChange(index, 'name', e.target.value)
                                 }
                                 placeholder="Nombre"
                               />
                               <Input
-                                value={variable.example}
+                                value={variableItem.example}
                                 onChange={(e) =>
                                   handleVariableChange(index, 'example', e.target.value)
                                 }
