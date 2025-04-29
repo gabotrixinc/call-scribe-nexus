@@ -11,3 +11,9 @@ verify_jwt = false
 [functions.call-status-callback]
 verify_jwt = false
 
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.send-whatsapp-message]
+verify_jwt = false
+

@@ -10,6 +10,7 @@ import CallsPage from "./pages/CallsPage";
 import AgentsPage from "./pages/AgentsPage";
 import ConversationsPage from "./pages/ConversationsPage";
 import SettingsPage from "./pages/SettingsPage";
+import MessagingPage from "./pages/MessagingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/calls" element={<CallsPage />} />
           <Route path="/agents" element={<AgentsPage />} />
           <Route path="/conversations" element={<ConversationsPage />} />
+          <Route path="/messaging" element={<MessagingPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
