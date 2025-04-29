@@ -42,6 +42,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_prompt_configs: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          language: string
+          max_tokens: number
+          name: string
+          system_prompt: string
+          temperature: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          language?: string
+          max_tokens?: number
+          name: string
+          system_prompt: string
+          temperature?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          language?: string
+          max_tokens?: number
+          name?: string
+          system_prompt?: string
+          temperature?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       calls: {
         Row: {
           ai_agent_id: string | null
@@ -206,6 +242,172 @@ export type Database = {
           twilio_phone_number?: string | null
           webhook_secret?: string | null
           webhook_urls?: Json | null
+        }
+        Relationships: []
+      }
+      whatsapp_config: {
+        Row: {
+          access_token: string | null
+          business_account_id: string | null
+          business_description: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          phone_number_id: string | null
+          updated_at: string
+          verified: boolean | null
+          verify_token: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          business_account_id?: string | null
+          business_description?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          phone_number_id?: string | null
+          updated_at?: string
+          verified?: boolean | null
+          verify_token?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          business_account_id?: string | null
+          business_description?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          phone_number_id?: string | null
+          updated_at?: string
+          verified?: boolean | null
+          verify_token?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_conversations: {
+        Row: {
+          ai_agent_id: string | null
+          contact_name: string | null
+          contact_photo_url: string | null
+          created_at: string
+          id: string
+          last_message_time: string
+          status: string
+          unread_count: number
+          wa_phone_number: string
+        }
+        Insert: {
+          ai_agent_id?: string | null
+          contact_name?: string | null
+          contact_photo_url?: string | null
+          created_at?: string
+          id?: string
+          last_message_time?: string
+          status?: string
+          unread_count?: number
+          wa_phone_number: string
+        }
+        Update: {
+          ai_agent_id?: string | null
+          contact_name?: string | null
+          contact_photo_url?: string | null
+          created_at?: string
+          id?: string
+          last_message_time?: string
+          status?: string
+          unread_count?: number
+          wa_phone_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_ai_agent_id_fkey"
+            columns: ["ai_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          ai_generated: boolean | null
+          content: string | null
+          conversation_id: string
+          direction: string
+          id: string
+          media_type: string | null
+          media_url: string | null
+          timestamp: string
+          wa_message_id: string | null
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          content?: string | null
+          conversation_id: string
+          direction: string
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          timestamp?: string
+          wa_message_id?: string | null
+        }
+        Update: {
+          ai_generated?: boolean | null
+          content?: string | null
+          conversation_id?: string
+          direction?: string
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          timestamp?: string
+          wa_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_templates: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          id: string
+          language: string
+          name: string
+          status: string
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          id?: string
+          language?: string
+          name: string
+          status?: string
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          language?: string
+          name?: string
+          status?: string
+          updated_at?: string
+          variables?: Json
         }
         Relationships: []
       }

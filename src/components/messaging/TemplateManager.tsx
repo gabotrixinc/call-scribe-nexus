@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -118,7 +117,6 @@ const TemplateManager = () => {
       
       if (error) throw error;
       
-      // Update local state
       setTemplates(
         templates.map((t) =>
           t.id === editedTemplate.id
@@ -206,7 +204,6 @@ const TemplateManager = () => {
       
       if (error) throw error;
       
-      // Update local state
       const updatedTemplates = templates.filter((t) => t.id !== selectedTemplate.id);
       setTemplates(updatedTemplates);
       
@@ -255,7 +252,6 @@ const TemplateManager = () => {
     
     const updatedVariables = [...editedTemplate.variables];
     
-    // If the name is changing, also update in the content
     if (field === 'name' && updatedVariables[index]) {
       const oldName = updatedVariables[index].name;
       const newContent = editedTemplate.content.replace(
@@ -560,7 +556,7 @@ const TemplateManager = () => {
                             >
                               <div>
                                 <span className="font-mono text-sm">
-                                  {{variable.name}}
+                                  {`{{${variable.name}}}`}
                                 </span>
                                 <p className="text-xs text-muted-foreground">
                                   Ejemplo: {variable.example}
