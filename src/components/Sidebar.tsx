@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,8 @@ import {
   Users,
   BarChart,
   Settings,
-  MessageSquare
+  MessageSquare,
+  MessageCircle
 } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
@@ -35,6 +37,11 @@ const Sidebar: React.FC = () => {
       name: 'Conversations', 
       path: '/conversations', 
       icon: <MessageSquare className="w-5 h-5" /> 
+    },
+    { 
+      name: 'WhatsApp Messaging', 
+      path: '/messaging', 
+      icon: <MessageCircle className="w-5 h-5" /> 
     },
     { 
       name: 'Settings', 
