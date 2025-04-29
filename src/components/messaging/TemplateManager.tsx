@@ -562,17 +562,17 @@ const TemplateManager = () => {
                       <h4 className="text-sm font-medium mb-1">Variables</h4>
                       {selectedTemplate.variables && selectedTemplate.variables.length > 0 ? (
                         <div className="grid gap-2 grid-cols-2">
-                          {selectedTemplate.variables.map((variable, index) => (
+                          {selectedTemplate.variables.map((variableItem, index) => (
                             <div
                               key={index}
                               className="flex justify-between items-center p-2 border rounded-md"
                             >
                               <div>
                                 <span className="font-mono text-sm">
-                                  {`{{${variable.name}}}`}
+                                  {`{{${variableItem.name}}}`}
                                 </span>
                                 <p className="text-xs text-muted-foreground">
-                                  Ejemplo: {variable.example}
+                                  Ejemplo: {variableItem.example}
                                 </p>
                               </div>
                             </div>
