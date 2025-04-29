@@ -61,7 +61,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ conversationId })
         if (messagesError) throw messagesError;
         
         // Cast the data to ensure it matches our Message interface
-        const typedMessages = (messagesData || []).map((msg: any): Message => ({
+        const typedMessages: Message[] = (messagesData || []).map((msg: any): Message => ({
           id: msg.id,
           content: msg.content,
           timestamp: msg.timestamp,
@@ -69,7 +69,8 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ conversationId })
           ai_generated: msg.ai_generated,
           media_url: msg.media_url,
           media_type: msg.media_type,
-          wa_message_id: msg.wa_message_id
+          wa_message_id: msg.wa_message_id,
+          conversation_id: msg.conversation_id
         }));
         
         setMessages(typedMessages);
@@ -104,19 +105,18 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ conversationId })
         (payload) => {
           if (payload.new) {
             const newMsg = payload.new as any;
-            setMessages((prevMessages) => [
-              ...prevMessages, 
-              {
-                id: newMsg.id,
-                content: newMsg.content,
-                timestamp: newMsg.timestamp,
-                direction: newMsg.direction as 'inbound' | 'outbound',
-                ai_generated: newMsg.ai_generated,
-                media_url: newMsg.media_url,
-                media_type: newMsg.media_type,
-                wa_message_id: newMsg.wa_message_id
-              }
-            ]);
+            const typedMsg: Message = {
+              id: newMsg.id,
+              content: newMsg.content,
+              timestamp: newMsg.timestamp,
+              direction: newMsg.direction as 'inbound' | 'outbound',
+              ai_generated: newMsg.ai_generated,
+              media_url: newMsg.media_url,
+              media_type: newMsg.media_type,
+              wa_message_id: newMsg.wa_message_id,
+              conversation_id: newMsg.conversation_id
+            };
+            setMessages((prevMessages) => [...prevMessages, typedMsg]);
           }
         }
       )

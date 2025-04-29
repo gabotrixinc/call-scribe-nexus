@@ -45,3 +45,25 @@ export interface WhatsappConversation {
     name: string;
   } | null;
 }
+
+// Helper functions for type conversion between Supabase Json and our types
+export const convertJsonToTemplateVariables = (jsonData: Json | null): TemplateVariable[] => {
+  if (!jsonData || !Array.isArray(jsonData)) return [];
+  
+  return jsonData.map(item => {
+    if (typeof item === 'object' && item !== null) {
+      return {
+        name: typeof item.name === 'string' ? item.name : '',
+        type: typeof item.type === 'string' && ['text', 'currency', 'date_time'].includes(item.type) 
+          ? (item.type as 'text' | 'currency' | 'date_time') 
+          : 'text',
+        example: typeof item.example === 'string' ? item.example : ''
+      };
+    }
+    return { name: '', type: 'text', example: '' };
+  });
+};
+
+export const convertTemplateVariablesToJson = (variables: TemplateVariable[]): Json => {
+  return variables as unknown as Json;
+};

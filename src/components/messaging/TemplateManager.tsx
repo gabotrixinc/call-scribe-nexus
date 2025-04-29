@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,7 +18,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageTemplate, TemplateVariable } from '@/types/messaging';
+import { 
+  MessageTemplate, 
+  TemplateVariable, 
+  convertJsonToTemplateVariables, 
+  convertTemplateVariablesToJson 
+} from '@/types/messaging';
 
 const TemplateManager = () => {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -52,7 +56,7 @@ const TemplateManager = () => {
           category: item.category,
           status: item.status as 'approved' | 'pending' | 'rejected',
           language: item.language,
-          variables: Array.isArray(item.variables) ? item.variables as TemplateVariable[] : [],
+          variables: convertJsonToTemplateVariables(item.variables),
           created_at: item.created_at,
           updated_at: item.updated_at
         }));
@@ -108,7 +112,7 @@ const TemplateManager = () => {
           content: editedTemplate.content,
           category: editedTemplate.category,
           language: editedTemplate.language,
-          variables: editedTemplate.variables,
+          variables: convertTemplateVariablesToJson(editedTemplate.variables),
           updated_at: new Date().toISOString(),
         })
         .eq('id', editedTemplate.id);
@@ -162,6 +166,7 @@ const TemplateManager = () => {
           ...newTemplate,
           created_at: now,
           updated_at: now,
+          variables: convertTemplateVariablesToJson(newTemplate.variables),
         })
         .select()
         .single();
@@ -176,7 +181,7 @@ const TemplateManager = () => {
         category: data.category,
         status: data.status as 'approved' | 'pending' | 'rejected',
         language: data.language,
-        variables: Array.isArray(data.variables) ? data.variables as TemplateVariable[] : [],
+        variables: convertJsonToTemplateVariables(data.variables),
         created_at: data.created_at,
         updated_at: data.updated_at
       };

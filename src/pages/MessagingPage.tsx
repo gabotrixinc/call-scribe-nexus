@@ -74,7 +74,7 @@ const MessagingPage = () => {
           if (payload.new) {
             // Check if the payload has the conversation_id property using type safety
             const newPayload = payload.new as { conversation_id?: string };
-            if (newPayload.conversation_id && selectedConversation === newPayload.conversation_id) {
+            if (newPayload && newPayload.conversation_id && selectedConversation === newPayload.conversation_id) {
               fetchConversations();
             }
           }
