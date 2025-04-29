@@ -48,7 +48,6 @@ const TemplateManager = () => {
         
         if (error) throw error;
         
-        // Transform database data to match our MessageTemplate interface
         const typedTemplates: MessageTemplate[] = (data || []).map(item => ({
           id: item.id,
           name: item.name,
@@ -104,7 +103,6 @@ const TemplateManager = () => {
     try {
       setIsSaving(true);
       
-      // Convert variables to JSON format suitable for the database
       const { error } = await supabase
         .from('whatsapp_templates')
         .update({
@@ -173,7 +171,6 @@ const TemplateManager = () => {
       
       if (error) throw error;
       
-      // Convert to our template format
       const newCreatedTemplate: MessageTemplate = {
         id: data.id,
         name: data.name,

@@ -52,12 +52,13 @@ export const convertJsonToTemplateVariables = (jsonData: Json | null): TemplateV
   
   return jsonData.map(item => {
     if (typeof item === 'object' && item !== null) {
+      const typedItem = item as Record<string, unknown>;
       return {
-        name: typeof item.name === 'string' ? item.name : '',
-        type: typeof item.type === 'string' && ['text', 'currency', 'date_time'].includes(item.type) 
-          ? (item.type as 'text' | 'currency' | 'date_time') 
+        name: typeof typedItem.name === 'string' ? typedItem.name : '',
+        type: typeof typedItem.type === 'string' && ['text', 'currency', 'date_time'].includes(typedItem.type as string) 
+          ? (typedItem.type as 'text' | 'currency' | 'date_time') 
           : 'text',
-        example: typeof item.example === 'string' ? item.example : ''
+        example: typeof typedItem.example === 'string' ? typedItem.example : ''
       };
     }
     return { name: '', type: 'text', example: '' };
