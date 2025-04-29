@@ -10,10 +10,11 @@ import TemplateManager from '@/components/messaging/TemplateManager';
 import AIConfigPanel from '@/components/messaging/AIConfigPanel';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { WhatsappConversation } from '@/types/messaging';
 
 const MessagingPage = () => {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [conversations, setConversations] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<WhatsappConversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -27,7 +28,21 @@ const MessagingPage = () => {
           .order('last_message_time', { ascending: false });
 
         if (error) throw error;
-        setConversations(data || []);
+        
+        // Cast data to our WhatsappConversation type
+        const typedConversations = (data || []).map((conv): WhatsappConversation => ({
+          id: conv.id,
+          wa_phone_number: conv.wa_phone_number,
+          status: conv.status,
+          last_message_time: conv.last_message_time,
+          unread_count: conv.unread_count,
+          ai_agent_id: conv.ai_agent_id,
+          contact_name: conv.contact_name,
+          contact_photo_url: conv.contact_photo_url,
+          agents: conv.agents
+        }));
+        
+        setConversations(typedConversations);
       } catch (error) {
         console.error('Error fetching conversations:', error);
         toast({
@@ -56,8 +71,12 @@ const MessagingPage = () => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'whatsapp_messages' },
         (payload) => {
-          if (payload.new && selectedConversation === payload.new.conversation_id) {
-            fetchConversations();
+          if (payload.new) {
+            // Check if the payload has the conversation_id property using type safety
+            const newPayload = payload.new as { conversation_id?: string };
+            if (newPayload.conversation_id && selectedConversation === newPayload.conversation_id) {
+              fetchConversations();
+            }
           }
         }
       )

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,24 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-
-interface TemplateVariable {
-  name: string;
-  type: 'text' | 'currency' | 'date_time';
-  example: string;
-}
-
-interface MessageTemplate {
-  id: string;
-  name: string;
-  content: string;
-  category: string;
-  status: 'approved' | 'pending' | 'rejected';
-  language: string;
-  variables: TemplateVariable[];
-  created_at: string;
-  updated_at: string;
-}
+import { MessageTemplate, TemplateVariable } from '@/types/messaging';
 
 const TemplateManager = () => {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -60,9 +44,22 @@ const TemplateManager = () => {
         
         if (error) throw error;
         
-        setTemplates(data || []);
-        if (data && data.length > 0) {
-          setSelectedTemplate(data[0]);
+        // Transform database data to match our MessageTemplate interface
+        const typedTemplates: MessageTemplate[] = (data || []).map(item => ({
+          id: item.id,
+          name: item.name,
+          content: item.content,
+          category: item.category,
+          status: item.status as 'approved' | 'pending' | 'rejected',
+          language: item.language,
+          variables: Array.isArray(item.variables) ? item.variables as TemplateVariable[] : [],
+          created_at: item.created_at,
+          updated_at: item.updated_at
+        }));
+        
+        setTemplates(typedTemplates);
+        if (typedTemplates.length > 0) {
+          setSelectedTemplate(typedTemplates[0]);
         }
       } catch (error) {
         console.error('Error loading templates:', error);
@@ -103,6 +100,7 @@ const TemplateManager = () => {
     try {
       setIsSaving(true);
       
+      // Convert variables to JSON format suitable for the database
       const { error } = await supabase
         .from('whatsapp_templates')
         .update({
@@ -170,9 +168,22 @@ const TemplateManager = () => {
       
       if (error) throw error;
       
-      setTemplates([...templates, data]);
-      setSelectedTemplate(data);
-      setEditedTemplate(data);
+      // Convert to our template format
+      const newCreatedTemplate: MessageTemplate = {
+        id: data.id,
+        name: data.name,
+        content: data.content,
+        category: data.category,
+        status: data.status as 'approved' | 'pending' | 'rejected',
+        language: data.language,
+        variables: Array.isArray(data.variables) ? data.variables as TemplateVariable[] : [],
+        created_at: data.created_at,
+        updated_at: data.updated_at
+      };
+      
+      setTemplates([...templates, newCreatedTemplate]);
+      setSelectedTemplate(newCreatedTemplate);
+      setEditedTemplate(newCreatedTemplate);
       setIsEditing(true);
       
       toast({

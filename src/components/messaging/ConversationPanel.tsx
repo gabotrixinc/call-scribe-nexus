@@ -2,27 +2,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Send, Paperclip, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Paperclip, Bot, User, Loader2, MessageSquare as MessageSquareIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Message } from '@/types/messaging';
 
 interface ConversationPanelProps {
   conversationId: string | null;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  timestamp: string;
-  direction: 'inbound' | 'outbound';
-  ai_generated?: boolean;
-  media_url?: string | null;
-  media_type?: string | null;
 }
 
 const ConversationPanel: React.FC<ConversationPanelProps> = ({ conversationId }) => {
@@ -69,7 +59,20 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ conversationId })
           .order('timestamp');
         
         if (messagesError) throw messagesError;
-        setMessages(messagesData || []);
+        
+        // Cast the data to ensure it matches our Message interface
+        const typedMessages = (messagesData || []).map((msg: any): Message => ({
+          id: msg.id,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          direction: msg.direction as 'inbound' | 'outbound',
+          ai_generated: msg.ai_generated,
+          media_url: msg.media_url,
+          media_type: msg.media_type,
+          wa_message_id: msg.wa_message_id
+        }));
+        
+        setMessages(typedMessages);
 
         // Mark messages as read if needed
         if (conversationData.unread_count > 0) {
@@ -99,7 +102,22 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ conversationId })
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'whatsapp_messages', filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
-          setMessages((prevMessages) => [...prevMessages, payload.new as Message]);
+          if (payload.new) {
+            const newMsg = payload.new as any;
+            setMessages((prevMessages) => [
+              ...prevMessages, 
+              {
+                id: newMsg.id,
+                content: newMsg.content,
+                timestamp: newMsg.timestamp,
+                direction: newMsg.direction as 'inbound' | 'outbound',
+                ai_generated: newMsg.ai_generated,
+                media_url: newMsg.media_url,
+                media_type: newMsg.media_type,
+                wa_message_id: newMsg.wa_message_id
+              }
+            ]);
+          }
         }
       )
       .subscribe();
@@ -153,7 +171,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ conversationId })
       <div className="h-full flex items-center justify-center p-8 text-center">
         <div>
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-            <MessageSquare className="h-10 w-10 text-muted-foreground" />
+            <MessageSquareIcon className="h-10 w-10 text-muted-foreground" />
           </div>
           <h3 className="mt-4 text-lg font-semibold">Selecciona una conversación</h3>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -300,22 +318,5 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ conversationId })
     </div>
   );
 };
-
-// Import at the top of the file
-const MessageSquare = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-  </svg>
-);
 
 export default ConversationPanel;
