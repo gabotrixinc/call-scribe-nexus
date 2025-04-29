@@ -1,22 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/components/ui/use-toast';
-import { Search, Plus, Edit, Trash2, Clock, Send, Check, X, Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Plus, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   MessageTemplate, 
@@ -24,6 +11,14 @@ import {
   convertJsonToTemplateVariables, 
   convertTemplateVariablesToJson 
 } from '@/types/messaging';
+
+// Import our new component files
+import TemplateList from './templates/TemplateList';
+import TemplateEditor from './templates/TemplateEditor';
+import TemplateDetails from './templates/TemplateDetails';
+import TemplateHeader from './templates/TemplateHeader';
+import DeleteTemplateDialog from './templates/DeleteTemplateDialog';
+import EmptyTemplateState from './templates/EmptyTemplateState';
 
 const TemplateManager = () => {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -78,17 +73,6 @@ const TemplateManager = () => {
 
     fetchTemplates();
   }, [toast]);
-
-  const filteredTemplates = templates.filter((template) => {
-    const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      template.content.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = activeCategory === 'all' || template.category === activeCategory;
-    
-    return matchesSearch && matchesCategory;
-  });
-
-  const categories = ['all', ...Array.from(new Set(templates.map((t) => t.category)))];
 
   const handleEditTemplate = () => {
     if (selectedTemplate) {
@@ -302,29 +286,13 @@ const TemplateManager = () => {
     });
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-            <Check className="h-3 w-3 mr-1" /> Aprobada
-          </Badge>
-        );
-      case 'pending':
-        return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-            <Clock className="h-3 w-3 mr-1" /> Pendiente
-          </Badge>
-        );
-      case 'rejected':
-        return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-            <X className="h-3 w-3 mr-1" /> Rechazada
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
+  const handleEditFieldChange = (field: keyof MessageTemplate, value: string) => {
+    if (!editedTemplate) return;
+    
+    setEditedTemplate({
+      ...editedTemplate,
+      [field]: value,
+    });
   };
 
   if (isLoading) {
@@ -346,289 +314,66 @@ const TemplateManager = () => {
       
       <div className="grid gap-6 md:grid-cols-3">
         <div className="space-y-4 md:col-span-1">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar plantillas..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          
-          <div>
-            <ScrollArea className="h-[500px] border rounded-md">
-              {filteredTemplates.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground">
-                  No se encontraron plantillas
-                </div>
-              ) : (
-                filteredTemplates.map((template) => (
-                  <div
-                    key={template.id}
-                    className={`p-3 cursor-pointer border-b last:border-b-0 ${
-                      selectedTemplate?.id === template.id
-                        ? 'bg-accent'
-                        : 'hover:bg-accent/50'
-                    }`}
-                    onClick={() => setSelectedTemplate(template)}
-                  >
-                    <div className="flex justify-between">
-                      <h4 className="font-medium">{template.name}</h4>
-                      {getStatusBadge(template.status)}
-                    </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                      {template.content}
-                    </p>
-                    <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                      <span>{template.category}</span>
-                      <span>
-                        {new Date(template.updated_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </ScrollArea>
-          </div>
+          <TemplateList 
+            templates={templates}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            selectedTemplate={selectedTemplate}
+            setSelectedTemplate={setSelectedTemplate}
+            isLoading={isLoading}
+            activeCategory={activeCategory}
+          />
         </div>
         
         <Card className="md:col-span-2">
           {selectedTemplate ? (
             <>
               <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle>{selectedTemplate.name}</CardTitle>
-                    <CardDescription>
-                      {getStatusBadge(selectedTemplate.status)}
-                      <span className="ml-2">
-                        Última actualización:{' '}
-                        {new Date(selectedTemplate.updated_at).toLocaleDateString()}
-                      </span>
-                    </CardDescription>
-                  </div>
-                  <div className="flex space-x-2">
-                    {!isEditing && (
-                      <>
-                        <Button variant="outline" size="sm" onClick={handleEditTemplate}>
-                          <Edit className="h-4 w-4 mr-2" /> Editar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => setIsDeleteDialogOpen(true)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
+                <TemplateHeader 
+                  template={selectedTemplate}
+                  isEditing={isEditing}
+                  onEdit={handleEditTemplate}
+                  onDelete={() => setIsDeleteDialogOpen(true)}
+                />
               </CardHeader>
               <CardContent>
                 {isEditing && editedTemplate ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="template-name">Nombre de la plantilla</Label>
-                      <Input
-                        id="template-name"
-                        value={editedTemplate.name}
-                        onChange={(e) =>
-                          setEditedTemplate({
-                            ...editedTemplate,
-                            name: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="template-category">Categoría</Label>
-                      <Input
-                        id="template-category"
-                        value={editedTemplate.category}
-                        onChange={(e) =>
-                          setEditedTemplate({
-                            ...editedTemplate,
-                            category: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="template-content">Contenido</Label>
-                      <Textarea
-                        id="template-content"
-                        value={editedTemplate.content}
-                        onChange={(e) =>
-                          setEditedTemplate({
-                            ...editedTemplate,
-                            content: e.target.value,
-                          })
-                        }
-                        rows={6}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Use {{variable}} para definir variables que se pueden reemplazar.
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <Label>Variables</Label>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleAddVariable}
-                          className="h-8"
-                        >
-                          <Plus className="h-3 w-3 mr-1" /> Agregar variable
-                        </Button>
-                      </div>
-                      
-                      {editedTemplate.variables.length > 0 ? (
-                        <div className="space-y-4">
-                          {editedTemplate.variables.map((variableItem, index) => (
-                            <div key={index} className="grid grid-cols-3 gap-2 items-center">
-                              <Input
-                                value={variableItem.name}
-                                onChange={(e) =>
-                                  handleVariableChange(index, 'name', e.target.value)
-                                }
-                                placeholder="Nombre"
-                              />
-                              <Input
-                                value={variableItem.example}
-                                onChange={(e) =>
-                                  handleVariableChange(index, 'example', e.target.value)
-                                }
-                                placeholder="Ejemplo"
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8"
-                                onClick={() => handleRemoveVariable(index)}
-                              >
-                                <Trash2 className="h-3 w-3 mr-1" /> Quitar
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          No hay variables definidas para esta plantilla.
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="flex space-x-2 justify-end">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setIsEditing(false);
-                          setEditedTemplate(null);
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button onClick={handleSaveTemplate} disabled={isSaving}>
-                        {isSaving ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <Check className="h-4 w-4 mr-2" />
-                        )}
-                        Guardar cambios
-                      </Button>
-                    </div>
-                  </div>
+                  <TemplateEditor 
+                    template={editedTemplate}
+                    onCancel={() => {
+                      setIsEditing(false);
+                      setEditedTemplate(null);
+                    }}
+                    onSave={handleSaveTemplate}
+                    onChange={handleEditFieldChange}
+                    onAddVariable={handleAddVariable}
+                    onVariableChange={handleVariableChange}
+                    onRemoveVariable={handleRemoveVariable}
+                    isSaving={isSaving}
+                  />
                 ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">Categoría</h4>
-                      <p>{selectedTemplate.category}</p>
-                    </div>
-                    
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">Contenido</h4>
-                      <div className="p-3 border rounded-md whitespace-pre-wrap">
-                        {selectedTemplate.content}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">Variables</h4>
-                      {selectedTemplate.variables && selectedTemplate.variables.length > 0 ? (
-                        <div className="grid gap-2 grid-cols-2">
-                          {selectedTemplate.variables.map((variableItem, index) => (
-                            <div
-                              key={index}
-                              className="flex justify-between items-center p-2 border rounded-md"
-                            >
-                              <div>
-                                <span className="font-mono text-sm">
-                                  {`{{${variableItem.name}}}`}
-                                </span>
-                                <p className="text-xs text-muted-foreground">
-                                  Ejemplo: {variableItem.example}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          No hay variables definidas para esta plantilla.
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="flex justify-end">
-                      <Button variant="outline" className="ml-auto">
-                        <Send className="h-4 w-4 mr-2" /> Probar envío
-                      </Button>
-                    </div>
-                  </div>
+                  <TemplateDetails 
+                    template={selectedTemplate}
+                    onEdit={handleEditTemplate}
+                    onDelete={() => setIsDeleteDialogOpen(true)}
+                  />
                 )}
               </CardContent>
             </>
           ) : (
-            <CardContent className="flex items-center justify-center p-12 text-center">
-              <div>
-                <h3 className="font-medium">No hay plantilla seleccionada</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Seleccione una plantilla de la lista o cree una nueva.
-                </p>
-                <Button className="mt-4" onClick={handleCreateTemplate}>
-                  <Plus className="h-4 w-4 mr-2" /> Nueva plantilla
-                </Button>
-              </div>
+            <CardContent>
+              <EmptyTemplateState onCreate={handleCreateTemplate} />
             </CardContent>
           )}
         </Card>
       </div>
 
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
-            <DialogDescription>
-              ¿Está seguro de que desea eliminar esta plantilla? Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteTemplate} disabled={isSaving}>
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Eliminar plantilla
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteTemplateDialog 
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onDelete={handleDeleteTemplate}
+        isDeleting={isSaving}
+      />
     </div>
   );
 };
