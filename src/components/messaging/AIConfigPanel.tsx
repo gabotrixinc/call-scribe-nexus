@@ -9,8 +9,9 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/use-toast';
-import { Bot, Loader2, Save, Plus } from 'lucide-react';
+import { Bot, Loader2, Save, Plus, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface AIPromptConfig {
@@ -31,18 +32,23 @@ const AIConfigPanel = () => {
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [isTestingAPI, setIsTestingAPI] = useState(false);
   const [isKeyValid, setIsKeyValid] = useState<boolean | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     const fetchPromptConfigs = async () => {
       try {
         setIsLoading(true);
+        setErrorMessage(null);
+        
         const { data, error } = await supabase
           .from('ai_prompt_configs')
           .select('*')
           .order('name');
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
         
         if (data && data.length > 0) {
           setPromptConfigs(data);
@@ -68,16 +74,25 @@ Recuerda:
             is_default: true
           };
           
-          const { data: newConfig, error: createError } = await supabase
-            .from('ai_prompt_configs')
-            .insert(defaultConfig)
-            .select()
-            .single();
+          try {
+            const { data: newConfig, error: createError } = await supabase
+              .from('ai_prompt_configs')
+              .insert(defaultConfig)
+              .select()
+              .single();
+              
+            if (createError) {
+              throw createError;
+            }
             
-          if (createError) throw createError;
-          
-          setPromptConfigs([newConfig]);
-          setSelectedConfig(newConfig);
+            if (newConfig) {
+              setPromptConfigs([newConfig]);
+              setSelectedConfig(newConfig);
+            }
+          } catch (createErr) {
+            console.error('Error creating default configuration:', createErr);
+            setErrorMessage('No se pudo crear la configuración predeterminada. Verifique sus permisos.');
+          }
         }
         
         // Load Gemini API key from settings
@@ -93,6 +108,7 @@ Recuerda:
         }
       } catch (error) {
         console.error('Error loading AI configurations:', error);
+        setErrorMessage('No se pudieron cargar las configuraciones de IA. Verifique sus permisos.');
         toast({
           title: 'Error',
           description: 'No se pudieron cargar las configuraciones de IA',
@@ -114,16 +130,17 @@ Recuerda:
   };
 
   const handleCreateNewConfig = async () => {
-    const newConfig: Omit<AIPromptConfig, 'id'> = {
-      name: `Nueva Configuración ${promptConfigs.length + 1}`,
-      system_prompt: '',
-      temperature: 0.7,
-      max_tokens: 1024,
-      language: 'es',
-      is_default: false
-    };
-    
     try {
+      const newConfig: Omit<AIPromptConfig, 'id'> = {
+        name: `Nueva Configuración ${promptConfigs.length + 1}`,
+        system_prompt: '',
+        temperature: 0.7,
+        max_tokens: 1024,
+        language: 'es',
+        is_default: false
+      };
+      
+      setIsSaving(true);
       const { data, error } = await supabase
         .from('ai_prompt_configs')
         .insert(newConfig)
@@ -143,9 +160,11 @@ Recuerda:
       console.error('Error creating new configuration:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo crear la configuración',
+        description: 'No se pudo crear la configuración. Verifique sus permisos.',
         variant: 'destructive',
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -193,7 +212,7 @@ Recuerda:
       console.error('Error saving configuration:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo guardar la configuración',
+        description: 'No se pudo guardar la configuración. Verifique sus permisos.',
         variant: 'destructive',
       });
     } finally {
@@ -251,6 +270,24 @@ Recuerda:
     );
   }
 
+  // If there's an error loading the configurations, show an error message
+  if (errorMessage) {
+    return (
+      <Alert variant="destructive" className="my-4">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>{errorMessage}</AlertDescription>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="mt-2"
+          onClick={() => window.location.reload()}
+        >
+          Intentar de nuevo
+        </Button>
+      </Alert>
+    );
+  }
+
   return (
     <Tabs defaultValue="prompt" className="space-y-4">
       <TabsList className="grid w-full grid-cols-3">
@@ -262,7 +299,7 @@ Recuerda:
       <TabsContent value="prompt" className="space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-medium">Configuraciones de Prompt</h3>
-          <Button variant="outline" size="sm" onClick={handleCreateNewConfig}>
+          <Button variant="outline" size="sm" onClick={handleCreateNewConfig} disabled={isSaving}>
             <Plus className="h-4 w-4 mr-2" /> Nueva configuración
           </Button>
         </div>
@@ -270,27 +307,33 @@ Recuerda:
         <div className="grid gap-6 md:grid-cols-3">
           <div className="space-y-4">
             <div className="border rounded-md p-3">
-              {promptConfigs.map((config) => (
-                <div
-                  key={config.id}
-                  className={`p-2 rounded-md cursor-pointer flex items-center justify-between ${
-                    selectedConfig?.id === config.id
-                      ? 'bg-accent'
-                      : 'hover:bg-accent/50'
-                  }`}
-                  onClick={() => handleSelectConfig(config.id)}
-                >
-                  <div className="flex items-center">
-                    <Bot className="h-4 w-4 mr-2 text-primary" />
-                    <span className="text-sm font-medium">{config.name}</span>
+              {promptConfigs.length > 0 ? (
+                promptConfigs.map((config) => (
+                  <div
+                    key={config.id}
+                    className={`p-2 rounded-md cursor-pointer flex items-center justify-between ${
+                      selectedConfig?.id === config.id
+                        ? 'bg-accent'
+                        : 'hover:bg-accent/50'
+                    }`}
+                    onClick={() => handleSelectConfig(config.id)}
+                  >
+                    <div className="flex items-center">
+                      <Bot className="h-4 w-4 mr-2 text-primary" />
+                      <span className="text-sm font-medium">{config.name}</span>
+                    </div>
+                    {config.is_default && (
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                        Predeterminado
+                      </span>
+                    )}
                   </div>
-                  {config.is_default && (
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                      Predeterminado
-                    </span>
-                  )}
+                ))
+              ) : (
+                <div className="p-4 text-center text-muted-foreground">
+                  No hay configuraciones disponibles
                 </div>
-              ))}
+              )}
             </div>
           </div>
           
@@ -470,6 +513,14 @@ Recuerda:
               <p className="text-xs text-muted-foreground">
                 Puede obtener su clave API de Gemini en la consola de Google AI.
               </p>
+            </div>
+            <div className="mt-4">
+              <Alert>
+                <AlertDescription>
+                  Utilice la clave de API para habilitar las funciones de IA conversacional en WhatsApp. 
+                  Si ya tiene configurada esta clave en su entorno, no es necesario volver a ingresarla aquí.
+                </AlertDescription>
+              </Alert>
             </div>
           </CardContent>
         </Card>

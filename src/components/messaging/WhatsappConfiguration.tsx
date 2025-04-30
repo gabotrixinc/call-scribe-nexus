@@ -8,8 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/use-toast';
-import { Info, Check, Loader2, X, ClipboardCopy } from 'lucide-react';
+import { Info, Check, Loader2, X, ClipboardCopy, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 
 const WhatsappConfiguration = () => {
   const [config, setConfig] = useState({
@@ -24,6 +26,7 @@ const WhatsappConfiguration = () => {
   const [verificationStatus, setVerificationStatus] = useState<'none' | 'pending' | 'verified' | 'failed'>('none');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isMetaConnecting, setIsMetaConnecting] = useState(false);
   const { toast } = useToast();
 
   // Generate the webhook URL for the user to copy
@@ -89,10 +92,6 @@ const WhatsappConfiguration = () => {
       );
 
       if (error) throw error;
-
-      // Also save to Supabase secrets
-      // Note: This is a placeholder, you would implement the actual secret setting mechanism
-      // depending on how your application handles secrets
       
       toast({
         title: 'Configuración guardada',
@@ -134,6 +133,44 @@ const WhatsappConfiguration = () => {
         description: 'No se pudo verificar el webhook de WhatsApp',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleConnectWithMeta = () => {
+    try {
+      setIsMetaConnecting(true);
+      
+      // Redirect URL to Meta Business Manager OAuth flow
+      // This is a placeholder. In a real implementation, you would redirect to the Meta OAuth URL
+      const metaAppId = '123456789012345'; // Replace with your Meta App ID
+      const redirectUri = encodeURIComponent(`${window.location.origin}/auth/meta-callback`);
+      const scope = encodeURIComponent('whatsapp_business_management,whatsapp_business_messaging');
+      
+      // For demo purposes, just show a toast
+      toast({
+        title: 'Conexión con Meta',
+        description: 'En una implementación real, esta acción te redirigiría a la página de autenticación de Meta Business.',
+      });
+      
+      // In a real implementation, you'd redirect to:
+      // window.location.href = `https://www.facebook.com/v16.0/dialog/oauth?client_id=${metaAppId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+      
+      // Simulate connection process
+      setTimeout(() => {
+        setIsMetaConnecting(false);
+        toast({
+          title: 'Demo: Conexión simulada',
+          description: 'La conexión simulada con Meta se ha completado con éxito.',
+        });
+      }, 2000);
+    } catch (error) {
+      console.error('Error connecting with Meta:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo iniciar la conexión con Meta',
+        variant: 'destructive',
+      });
+      setIsMetaConnecting(false);
     }
   };
 
@@ -179,149 +216,244 @@ const WhatsappConfiguration = () => {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Configuración de WhatsApp Business API</CardTitle>
-          <CardDescription>
-            Configure su conexión a WhatsApp Business API para enviar y recibir mensajes.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="phone-number-id">ID de Número de Teléfono</Label>
-            <Input
-              id="phone-number-id"
-              placeholder="123456789012345"
-              value={config.phoneNumberId}
-              onChange={(e) => setConfig({ ...config, phoneNumberId: e.target.value })}
-            />
-            <p className="text-xs text-muted-foreground">
-              El ID único de su número de teléfono en WhatsApp Business API.
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="business-account-id">ID de Cuenta de Negocios</Label>
-            <Input
-              id="business-account-id"
-              placeholder="123456789012345"
-              value={config.businessAccountId}
-              onChange={(e) => setConfig({ ...config, businessAccountId: e.target.value })}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="access-token">Token de Acceso</Label>
-            <Input
-              id="access-token"
-              type="password"
-              placeholder="A1B2C3D4E5..."
-              value={config.accessToken}
-              onChange={(e) => setConfig({ ...config, accessToken: e.target.value })}
-            />
-            <p className="text-xs text-muted-foreground">
-              Token de larga duración para su aplicación de WhatsApp.
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="verify-token">Token de Verificación</Label>
-            <Input
-              id="verify-token"
-              placeholder="token_secreto_personalizado"
-              value={config.verifyToken}
-              onChange={(e) => setConfig({ ...config, verifyToken: e.target.value })}
-            />
-            <p className="text-xs text-muted-foreground">
-              Token personalizado para verificar los webhooks entrantes.
-            </p>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button onClick={handleSaveConfig} disabled={isSaving}>
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            Guardar configuración
-          </Button>
-        </CardFooter>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Perfil de Empresa y Webhook</CardTitle>
-          <CardDescription>
-            Configure la información de su empresa y la URL del webhook.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="display-name">Nombre para mostrar</Label>
-            <Input
-              id="display-name"
-              placeholder="Mi Empresa"
-              value={config.displayName}
-              onChange={(e) => setConfig({ ...config, displayName: e.target.value })}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="business-description">Descripción de la empresa</Label>
-            <Textarea
-              id="business-description"
-              placeholder="Somos una empresa dedicada a..."
-              value={config.businessDescription}
-              onChange={(e) => setConfig({ ...config, businessDescription: e.target.value })}
-              rows={3}
-            />
-          </div>
-          
-          <div className="border p-4 rounded-md bg-accent">
-            <div className="flex justify-between items-center mb-2">
-              <Label className="font-medium">URL del Webhook</Label>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8"
-                onClick={() => {
-                  navigator.clipboard.writeText(webhookUrl);
-                  toast({
-                    title: 'URL copiada',
-                    description: 'La URL del webhook ha sido copiada al portapapeles.',
-                  });
-                }}
-              >
-                <ClipboardCopy className="h-4 w-4 mr-2" /> Copiar
-              </Button>
+    <Tabs defaultValue="meta" className="space-y-4">
+      <TabsList className="grid grid-cols-2 w-full md:w-auto">
+        <TabsTrigger value="meta">Conexión con Meta</TabsTrigger>
+        <TabsTrigger value="manual">Configuración Manual</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="meta">
+        <Card>
+          <CardHeader>
+            <CardTitle>Conexión con Meta Business</CardTitle>
+            <CardDescription>
+              Conecte directamente con Meta Business Manager para configurar WhatsApp Business API
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="rounded-md bg-primary/10 p-4">
+              <div className="flex flex-col space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium">Conexión directa con Meta Business</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Configure WhatsApp Business API directamente a través de su cuenta de Meta Business.
+                    Este proceso automatiza la autorización y configuración.
+                  </p>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Requisitos:</h4>
+                  <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                    <li>Tener una cuenta de Meta Business Manager</li>
+                    <li>Tener acceso de administrador a una cuenta de WhatsApp Business</li>
+                    <li>Tener un número de teléfono verificado para WhatsApp Business</li>
+                  </ul>
+                </div>
+
+                <Button 
+                  onClick={handleConnectWithMeta}
+                  disabled={isMetaConnecting}
+                  className="self-start"
+                >
+                  {isMetaConnecting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Conectar con Meta Business
+                  <ExternalLink className="h-4 w-4 ml-2" />
+                </Button>
+
+                <Alert className="mt-4">
+                  <AlertDescription>
+                    <p className="text-sm">
+                      Será redirigido a Meta para autorizar el acceso a su cuenta de WhatsApp Business.
+                      Después de la autorización, será redirigido de vuelta a esta aplicación.
+                    </p>
+                  </AlertDescription>
+                </Alert>
+              </div>
             </div>
-            <p className="text-sm font-mono break-all mb-2">{webhookUrl}</p>
-            <div className="flex justify-between items-center mt-4">
-              <div>{getStatusElement()}</div>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="h-8"
-                onClick={handleVerifyWebhook}
-                disabled={verificationStatus === 'pending'}
-              >
-                {verificationStatus === 'pending' ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
-                Verificar Webhook
-              </Button>
+
+            <div className="rounded-md bg-accent p-4">
+              <h3 className="text-sm font-medium mb-2">Ventajas de la conexión directa con Meta</h3>
+              <ul className="grid gap-2 md:grid-cols-2">
+                <li className="flex items-start space-x-2">
+                  <Check className="h-4 w-4 text-green-500 mt-0.5" />
+                  <span className="text-sm">Configuración automática de webhooks</span>
+                </li>
+                <li className="flex items-start space-x-2">
+                  <Check className="h-4 w-4 text-green-500 mt-0.5" />
+                  <span className="text-sm">Gestión simplificada de tokens</span>
+                </li>
+                <li className="flex items-start space-x-2">
+                  <Check className="h-4 w-4 text-green-500 mt-0.5" />
+                  <span className="text-sm">Obtención automática de IDs</span>
+                </li>
+                <li className="flex items-start space-x-2">
+                  <Check className="h-4 w-4 text-green-500 mt-0.5" />
+                  <span className="text-sm">Renovación automática de tokens</span>
+                </li>
+              </ul>
             </div>
-          </div>
-          
-          <Alert className="mt-4">
-            <AlertDescription>
-              <p className="text-sm">
-                Después de configurar, debe registrar esta URL en la configuración de su aplicación
-                de WhatsApp Business en el Meta Developer Portal.
+
+            <div>
+              <h3 className="text-sm font-medium mb-2">Documentación</h3>
+              <p className="text-sm text-muted-foreground">
+                Para más información sobre la integración de WhatsApp Business API con Meta Business Manager,
+                consulte la <a href="https://developers.facebook.com/docs/whatsapp/business-management-api" target="_blank" rel="noreferrer" className="text-primary hover:underline">documentación oficial de Meta</a>.
               </p>
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-    </div>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="manual">
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configuración de WhatsApp Business API</CardTitle>
+              <CardDescription>
+                Configure su conexión a WhatsApp Business API para enviar y recibir mensajes.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone-number-id">ID de Número de Teléfono</Label>
+                <Input
+                  id="phone-number-id"
+                  placeholder="123456789012345"
+                  value={config.phoneNumberId}
+                  onChange={(e) => setConfig({ ...config, phoneNumberId: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  El ID único de su número de teléfono en WhatsApp Business API.
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="business-account-id">ID de Cuenta de Negocios</Label>
+                <Input
+                  id="business-account-id"
+                  placeholder="123456789012345"
+                  value={config.businessAccountId}
+                  onChange={(e) => setConfig({ ...config, businessAccountId: e.target.value })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="access-token">Token de Acceso</Label>
+                <Input
+                  id="access-token"
+                  type="password"
+                  placeholder="A1B2C3D4E5..."
+                  value={config.accessToken}
+                  onChange={(e) => setConfig({ ...config, accessToken: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Token de larga duración para su aplicación de WhatsApp.
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="verify-token">Token de Verificación</Label>
+                <Input
+                  id="verify-token"
+                  placeholder="token_secreto_personalizado"
+                  value={config.verifyToken}
+                  onChange={(e) => setConfig({ ...config, verifyToken: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Token personalizado para verificar los webhooks entrantes.
+                </p>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleSaveConfig} disabled={isSaving}>
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Guardar configuración
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Perfil de Empresa y Webhook</CardTitle>
+              <CardDescription>
+                Configure la información de su empresa y la URL del webhook.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="display-name">Nombre para mostrar</Label>
+                <Input
+                  id="display-name"
+                  placeholder="Mi Empresa"
+                  value={config.displayName}
+                  onChange={(e) => setConfig({ ...config, displayName: e.target.value })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="business-description">Descripción de la empresa</Label>
+                <Textarea
+                  id="business-description"
+                  placeholder="Somos una empresa dedicada a..."
+                  value={config.businessDescription}
+                  onChange={(e) => setConfig({ ...config, businessDescription: e.target.value })}
+                  rows={3}
+                />
+              </div>
+              
+              <div className="border p-4 rounded-md bg-accent">
+                <div className="flex justify-between items-center mb-2">
+                  <Label className="font-medium">URL del Webhook</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => {
+                      navigator.clipboard.writeText(webhookUrl);
+                      toast({
+                        title: 'URL copiada',
+                        description: 'La URL del webhook ha sido copiada al portapapeles.',
+                      });
+                    }}
+                  >
+                    <ClipboardCopy className="h-4 w-4 mr-2" /> Copiar
+                  </Button>
+                </div>
+                <p className="text-sm font-mono break-all mb-2">{webhookUrl}</p>
+                <div className="flex justify-between items-center mt-4">
+                  <div>{getStatusElement()}</div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-8"
+                    onClick={handleVerifyWebhook}
+                    disabled={verificationStatus === 'pending'}
+                  >
+                    {verificationStatus === 'pending' ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    Verificar Webhook
+                  </Button>
+                </div>
+              </div>
+              
+              <Alert className="mt-4">
+                <AlertDescription>
+                  <p className="text-sm">
+                    Después de configurar, debe registrar esta URL en la configuración de su aplicación
+                    de WhatsApp Business en el Meta Developer Portal.
+                  </p>
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 };
 

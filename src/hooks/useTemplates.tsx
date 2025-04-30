@@ -9,14 +9,29 @@ import {
   convertTemplateVariablesToJson 
 } from '@/types/messaging';
 
+interface UseTemplatesState {
+  templates: MessageTemplate[];
+  selectedTemplate: MessageTemplate | null;
+  isLoading: boolean;
+  isEditing: boolean;
+  editedTemplate: MessageTemplate | null;
+  isSaving: boolean;
+  isDeleteDialogOpen: boolean;
+  error: string | null;
+}
+
 export const useTemplates = () => {
-  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedTemplate, setEditedTemplate] = useState<MessageTemplate | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [state, setState] = useState<UseTemplatesState>({
+    templates: [],
+    selectedTemplate: null,
+    isLoading: true,
+    isEditing: false,
+    editedTemplate: null,
+    isSaving: false,
+    isDeleteDialogOpen: false,
+    error: null
+  });
+  
   const { toast } = useToast();
 
   // Fetch templates
@@ -26,13 +41,16 @@ export const useTemplates = () => {
 
   const fetchTemplates = async () => {
     try {
-      setIsLoading(true);
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      
       const { data, error } = await supabase
         .from('whatsapp_templates')
         .select('*')
         .order('name');
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
       const typedTemplates: MessageTemplate[] = (data || []).map(item => ({
         id: item.id,
@@ -46,75 +64,101 @@ export const useTemplates = () => {
         updated_at: item.updated_at
       }));
       
-      setTemplates(typedTemplates);
-      if (typedTemplates.length > 0 && !selectedTemplate) {
-        setSelectedTemplate(typedTemplates[0]);
-      }
+      setState(prev => {
+        const newState = { 
+          ...prev, 
+          templates: typedTemplates,
+          isLoading: false 
+        };
+        
+        if (typedTemplates.length > 0 && !prev.selectedTemplate) {
+          newState.selectedTemplate = typedTemplates[0];
+        }
+        
+        return newState;
+      });
     } catch (error) {
       console.error('Error loading templates:', error);
+      
+      setState(prev => ({ 
+        ...prev, 
+        isLoading: false,
+        error: 'No se pudieron cargar las plantillas. Verifique sus permisos.'
+      }));
+      
       toast({
         title: 'Error',
         description: 'No se pudieron cargar las plantillas',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   // Edit template
   const handleEditTemplate = () => {
-    if (selectedTemplate) {
-      setEditedTemplate({ ...selectedTemplate });
-      setIsEditing(true);
+    if (state.selectedTemplate) {
+      setState(prev => ({ 
+        ...prev, 
+        editedTemplate: { ...prev.selectedTemplate! },
+        isEditing: true
+      }));
     }
   };
 
   // Save template
   const handleSaveTemplate = async () => {
-    if (!editedTemplate) return;
+    if (!state.editedTemplate) return;
     
     try {
-      setIsSaving(true);
+      setState(prev => ({ ...prev, isSaving: true, error: null }));
       
       const { error } = await supabase
         .from('whatsapp_templates')
         .update({
-          name: editedTemplate.name,
-          content: editedTemplate.content,
-          category: editedTemplate.category,
-          language: editedTemplate.language,
-          variables: convertTemplateVariablesToJson(editedTemplate.variables),
+          name: state.editedTemplate.name,
+          content: state.editedTemplate.content,
+          category: state.editedTemplate.category,
+          language: state.editedTemplate.language,
+          variables: convertTemplateVariablesToJson(state.editedTemplate.variables),
           updated_at: new Date().toISOString(),
         })
-        .eq('id', editedTemplate.id);
+        .eq('id', state.editedTemplate.id);
       
       if (error) throw error;
       
-      setTemplates(
-        templates.map((t) =>
-          t.id === editedTemplate.id
-            ? { ...editedTemplate, updated_at: new Date().toISOString() }
-            : t
-        )
-      );
-      setSelectedTemplate({ ...editedTemplate, updated_at: new Date().toISOString() });
+      const updatedTemplate = { 
+        ...state.editedTemplate, 
+        updated_at: new Date().toISOString() 
+      };
+      
+      setState(prev => ({
+        ...prev,
+        templates: prev.templates.map((t) =>
+          t.id === updatedTemplate.id ? updatedTemplate : t
+        ),
+        selectedTemplate: updatedTemplate,
+        isSaving: false,
+        isEditing: false
+      }));
       
       toast({
         title: 'Plantilla guardada',
         description: 'La plantilla ha sido actualizada correctamente',
       });
-      
-      setIsEditing(false);
     } catch (error) {
       console.error('Error saving template:', error);
+      
+      setState(prev => ({ 
+        ...prev, 
+        isSaving: false,
+        error: 'No se pudo guardar la plantilla. Verifique sus permisos.' 
+      }));
+      
       toast({
         title: 'Error',
         description: 'No se pudo guardar la plantilla',
         variant: 'destructive',
       });
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -130,7 +174,7 @@ export const useTemplates = () => {
     };
     
     try {
-      setIsSaving(true);
+      setState(prev => ({ ...prev, isSaving: true, error: null }));
       
       const now = new Date().toISOString();
       const { data, error } = await supabase
@@ -158,10 +202,14 @@ export const useTemplates = () => {
         updated_at: data.updated_at
       };
       
-      setTemplates([...templates, newCreatedTemplate]);
-      setSelectedTemplate(newCreatedTemplate);
-      setEditedTemplate(newCreatedTemplate);
-      setIsEditing(true);
+      setState(prev => ({
+        ...prev,
+        templates: [...prev.templates, newCreatedTemplate],
+        selectedTemplate: newCreatedTemplate,
+        editedTemplate: newCreatedTemplate,
+        isEditing: true,
+        isSaving: false
+      }));
       
       toast({
         title: 'Plantilla creada',
@@ -169,89 +217,113 @@ export const useTemplates = () => {
       });
     } catch (error) {
       console.error('Error creating template:', error);
+      
+      setState(prev => ({ 
+        ...prev, 
+        isSaving: false,
+        error: 'No se pudo crear la plantilla. Verifique sus permisos.' 
+      }));
+      
       toast({
         title: 'Error',
         description: 'No se pudo crear la plantilla',
         variant: 'destructive',
       });
-    } finally {
-      setIsSaving(false);
     }
   };
 
   // Delete template
   const handleDeleteTemplate = async () => {
-    if (!selectedTemplate) return;
+    if (!state.selectedTemplate) return;
     
     try {
-      setIsSaving(true);
+      setState(prev => ({ ...prev, isSaving: true, error: null }));
       
       const { error } = await supabase
         .from('whatsapp_templates')
         .delete()
-        .eq('id', selectedTemplate.id);
+        .eq('id', state.selectedTemplate!.id);
       
       if (error) throw error;
       
-      const updatedTemplates = templates.filter((t) => t.id !== selectedTemplate.id);
-      setTemplates(updatedTemplates);
+      const updatedTemplates = state.templates.filter((t) => t.id !== state.selectedTemplate!.id);
       
-      if (updatedTemplates.length > 0) {
-        setSelectedTemplate(updatedTemplates[0]);
-      } else {
-        setSelectedTemplate(null);
-      }
+      setState(prev => {
+        const newState = {
+          ...prev,
+          templates: updatedTemplates,
+          isSaving: false,
+          isDeleteDialogOpen: false
+        };
+        
+        if (updatedTemplates.length > 0) {
+          newState.selectedTemplate = updatedTemplates[0];
+        } else {
+          newState.selectedTemplate = null;
+        }
+        
+        return newState;
+      });
       
       toast({
         title: 'Plantilla eliminada',
         description: 'La plantilla ha sido eliminada correctamente',
       });
-      
-      setIsDeleteDialogOpen(false);
     } catch (error) {
       console.error('Error deleting template:', error);
+      
+      setState(prev => ({ 
+        ...prev, 
+        isSaving: false,
+        error: 'No se pudo eliminar la plantilla. Verifique sus permisos.' 
+      }));
+      
       toast({
         title: 'Error',
         description: 'No se pudo eliminar la plantilla',
         variant: 'destructive',
       });
-    } finally {
-      setIsSaving(false);
     }
   };
 
   // Variable management
   const handleAddVariable = () => {
-    if (!editedTemplate) return;
+    if (!state.editedTemplate) return;
     
     const newVariable: TemplateVariable = {
-      name: `variable${editedTemplate.variables.length + 1}`,
+      name: `variable${state.editedTemplate.variables.length + 1}`,
       type: 'text',
       example: 'Ejemplo',
     };
     
-    setEditedTemplate({
-      ...editedTemplate,
-      variables: [...editedTemplate.variables, newVariable],
-      content: `${editedTemplate.content} {{${newVariable.name}}}`,
-    });
+    setState(prev => ({
+      ...prev,
+      editedTemplate: {
+        ...prev.editedTemplate!,
+        variables: [...prev.editedTemplate!.variables, newVariable],
+        content: `${prev.editedTemplate!.content} {{${newVariable.name}}}`,
+      }
+    }));
   };
 
   const handleVariableChange = (index: number, field: keyof TemplateVariable, value: string) => {
-    if (!editedTemplate) return;
+    if (!state.editedTemplate) return;
     
-    const updatedVariables = [...editedTemplate.variables];
+    const updatedVariables = [...state.editedTemplate.variables];
     
     if (field === 'name' && updatedVariables[index]) {
       const oldName = updatedVariables[index].name;
-      const newContent = editedTemplate.content.replace(
+      const newContent = state.editedTemplate.content.replace(
         `{{${oldName}}}`,
         `{{${value}}}`
       );
-      setEditedTemplate({
-        ...editedTemplate,
-        content: newContent,
-      });
+      setState(prev => ({
+        ...prev,
+        editedTemplate: {
+          ...prev.editedTemplate!,
+          content: newContent,
+        }
+      }));
     }
     
     updatedVariables[index] = {
@@ -259,49 +331,76 @@ export const useTemplates = () => {
       [field]: value,
     };
     
-    setEditedTemplate({
-      ...editedTemplate,
-      variables: updatedVariables,
-    });
+    setState(prev => ({
+      ...prev,
+      editedTemplate: {
+        ...prev.editedTemplate!,
+        variables: updatedVariables,
+      }
+    }));
   };
 
   const handleRemoveVariable = (index: number) => {
-    if (!editedTemplate) return;
+    if (!state.editedTemplate) return;
     
-    const variableName = editedTemplate.variables[index].name;
-    const updatedVariables = editedTemplate.variables.filter((_, i) => i !== index);
-    const updatedContent = editedTemplate.content.replace(`{{${variableName}}}`, '');
+    const variableName = state.editedTemplate.variables[index].name;
+    const updatedVariables = state.editedTemplate.variables.filter((_, i) => i !== index);
+    const updatedContent = state.editedTemplate.content.replace(`{{${variableName}}}`, '');
     
-    setEditedTemplate({
-      ...editedTemplate,
-      variables: updatedVariables,
-      content: updatedContent,
-    });
+    setState(prev => ({
+      ...prev,
+      editedTemplate: {
+        ...prev.editedTemplate!,
+        variables: updatedVariables,
+        content: updatedContent,
+      }
+    }));
   };
 
   const handleEditFieldChange = (field: keyof MessageTemplate, value: string) => {
-    if (!editedTemplate) return;
+    if (!state.editedTemplate) return;
     
-    setEditedTemplate({
-      ...editedTemplate,
-      [field]: value,
-    });
+    setState(prev => ({
+      ...prev,
+      editedTemplate: {
+        ...prev.editedTemplate!,
+        [field]: value,
+      }
+    }));
   };
 
   const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditedTemplate(null);
+    setState(prev => ({
+      ...prev,
+      isEditing: false,
+      editedTemplate: null
+    }));
+  };
+
+  const setSelectedTemplate = (template: MessageTemplate | null) => {
+    setState(prev => ({
+      ...prev,
+      selectedTemplate: template
+    }));
+  };
+
+  const setIsDeleteDialogOpen = (isOpen: boolean) => {
+    setState(prev => ({
+      ...prev,
+      isDeleteDialogOpen: isOpen
+    }));
   };
 
   return {
-    templates,
-    selectedTemplate,
+    templates: state.templates,
+    selectedTemplate: state.selectedTemplate,
     setSelectedTemplate,
-    isLoading,
-    isEditing,
-    editedTemplate,
-    isSaving,
-    isDeleteDialogOpen,
+    isLoading: state.isLoading,
+    isEditing: state.isEditing,
+    editedTemplate: state.editedTemplate,
+    isSaving: state.isSaving,
+    isDeleteDialogOpen: state.isDeleteDialogOpen,
+    error: state.error,
     setIsDeleteDialogOpen,
     handleEditTemplate,
     handleSaveTemplate,
