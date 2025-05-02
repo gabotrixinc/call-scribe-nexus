@@ -15,25 +15,29 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
   allowedRoles = [],
   redirectTo = '/login',
 }) => {
-  const { user, isLoading, hasRole } = useAuth();
+  const { user, isLoading, hasRole, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!isLoading) {
+      console.log("AuthGuard check - isAuthenticated:", isAuthenticated, "user:", user);
+      
       // If user is not logged in, redirect to login
-      if (!user) {
+      if (!isAuthenticated) {
+        console.log("User not authenticated, redirecting to", redirectTo);
         navigate(redirectTo);
         return;
       }
 
       // If allowedRoles is provided and user doesn't have any of the required roles, redirect
       if (allowedRoles.length > 0 && !hasRole(allowedRoles)) {
+        console.log("User doesn't have required roles, redirecting to unauthorized");
         navigate('/unauthorized');
       }
     }
-  }, [user, isLoading, navigate, redirectTo, allowedRoles, hasRole]);
+  }, [user, isLoading, navigate, redirectTo, allowedRoles, hasRole, isAuthenticated]);
 
-  // Show nothing while checking auth status
+  // Show loading state while checking auth status
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -49,7 +53,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
   }
 
   // If not loading and user is authenticated with correct role, render children
-  return user && (allowedRoles.length === 0 || hasRole(allowedRoles)) ? <>{children}</> : null;
+  return isAuthenticated && (allowedRoles.length === 0 || hasRole(allowedRoles)) ? <>{children}</> : null;
 };
 
 export default AuthGuard;

@@ -22,6 +22,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // First set up the auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.id);
         setAuthState(state => ({
           ...state,
           session,
@@ -30,12 +31,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Avoid supabase deadlock by using setTimeout
         if (session?.user) {
           setTimeout(async () => {
-            const user = await fetchUserProfile(session.user.id);
-            setAuthState(state => ({
-              ...state,
-              user,
-              isLoading: false,
-            }));
+            try {
+              const user = await fetchUserProfile(session.user.id);
+              console.log("Fetched user profile:", user);
+              setAuthState(state => ({
+                ...state,
+                user,
+                isLoading: false,
+              }));
+            } catch (error) {
+              console.error("Error fetching user profile:", error);
+              setAuthState(state => ({
+                ...state,
+                isLoading: false,
+              }));
+            }
           }, 0);
         } else {
           setAuthState(state => ({
@@ -49,18 +59,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Then check for existing session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log("Initial session check:", session?.user?.id);
       setAuthState(state => ({
         ...state,
         session,
       }));
       
       if (session?.user) {
-        const user = await fetchUserProfile(session.user.id);
-        setAuthState(state => ({
-          ...state,
-          user,
-          isLoading: false,
-        }));
+        try {
+          const user = await fetchUserProfile(session.user.id);
+          console.log("Initial user profile:", user);
+          setAuthState(state => ({
+            ...state,
+            user,
+            isLoading: false,
+          }));
+        } catch (error) {
+          console.error("Error fetching initial user profile:", error);
+          setAuthState(state => ({
+            ...state,
+            isLoading: false,
+          }));
+        }
       } else {
         setAuthState(state => ({
           ...state,
@@ -83,7 +103,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (error) throw error;
       
-      navigate('/');
+      // No need to navigate here as onAuthStateChange will handle redirects
       toast({
         title: "Inicio de sesión exitoso",
         description: "Bienvenido a Gabotrix CX",

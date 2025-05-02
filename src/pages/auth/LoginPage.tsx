@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
@@ -13,7 +13,16 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // If user is authenticated, redirect to dashboard
+    if (isAuthenticated && user) {
+      console.log("User is authenticated, redirecting to dashboard", user);
+      navigate('/');
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,13 +34,9 @@ const LoginPage: React.FC = () => {
     if (!error) {
       setEmail('');
       setPassword('');
+      // Navigate is now handled in useEffect
     }
   };
-
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to="/" />;
-  }
 
   return (
     <div className="auth-container bg-background">

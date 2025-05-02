@@ -10,7 +10,15 @@ export const fetchUserProfile = async (userId: string): Promise<User | null> => 
       .eq('id', userId)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching user profile:', error);
+      throw error;
+    }
+
+    if (!data) {
+      console.log('No user profile found for ID:', userId);
+      return null;
+    }
 
     // Transform the database profile to match our User type
     const user: User = {
@@ -26,7 +34,7 @@ export const fetchUserProfile = async (userId: string): Promise<User | null> => 
     return user;
   } catch (error) {
     console.error('Error fetching user profile:', error);
-    return null;
+    throw error;
   }
 };
 

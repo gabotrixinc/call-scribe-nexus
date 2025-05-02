@@ -17,6 +17,7 @@ import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import UnauthorizedPage from "./pages/auth/UnauthorizedPage";
 import { AuthProvider } from "./hooks/useAuth";
+import AuthGuard from "./components/auth/AuthGuard";
 
 const queryClient = new QueryClient();
 
@@ -28,20 +29,20 @@ const App = () => (
           <Toaster />
           <Sonner />
           <Routes>
-            {/* Auth Routes */}
+            {/* Auth Routes - Not protected */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
             
-            {/* App Routes */}
-            <Route path="/" element={<Index />} />
-            <Route path="/calls" element={<CallsPage />} />
-            <Route path="/agents" element={<AgentsPage />} />
-            <Route path="/conversations" element={<ConversationsPage />} />
-            <Route path="/messaging" element={<MessagingPage />} />
-            <Route path="/users" element={<UserManagementPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/settings/:section" element={<SettingsPage />} />
+            {/* Protected App Routes */}
+            <Route path="/" element={<AuthGuard><Index /></AuthGuard>} />
+            <Route path="/calls" element={<AuthGuard><CallsPage /></AuthGuard>} />
+            <Route path="/agents" element={<AuthGuard><AgentsPage /></AuthGuard>} />
+            <Route path="/conversations" element={<AuthGuard><ConversationsPage /></AuthGuard>} />
+            <Route path="/messaging" element={<AuthGuard><MessagingPage /></AuthGuard>} />
+            <Route path="/users" element={<AuthGuard allowedRoles={['admin']}><UserManagementPage /></AuthGuard>} />
+            <Route path="/settings" element={<AuthGuard><SettingsPage /></AuthGuard>} />
+            <Route path="/settings/:section" element={<AuthGuard><SettingsPage /></AuthGuard>} />
             
             {/* Not Found */}
             <Route path="*" element={<NotFound />} />
