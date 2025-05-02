@@ -104,6 +104,14 @@ export default {
 					'100%': { 
 						backgroundPosition: '0% 50%' 
 					}
+				},
+				'chart-pulse': {
+					'0%, 100%': { 
+						transform: 'scale(1)' 
+					},
+					'50%': { 
+						transform: 'scale(1.03)' 
+					}
 				}
 			},
 			animation: {
@@ -111,7 +119,8 @@ export default {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'fade-in': 'fade-in 0.3s ease-out',
 				'glow': 'glow 3s ease-in-out infinite',
-				'gradient-shift': 'gradient-shift 6s ease infinite'
+				'gradient-shift': 'gradient-shift 6s ease infinite',
+				'chart-pulse': 'chart-pulse 4s ease-in-out infinite'
 			},
 			backdropBlur: {
 				xs: '2px',

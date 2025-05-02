@@ -14,7 +14,8 @@
     --popover: 225 25% 12%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 262 83% 58%;
+    /* Color primario cambiado a #0443F2 */
+    --primary: 225 95% 48%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 217 32% 17%;
@@ -23,7 +24,8 @@
     --muted: 217 32% 17%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 262 83% 12%;
+    /* Color de acento cambiado a una variante más oscura del azul primario */
+    --accent: 225 95% 12%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84% 60%;
@@ -31,7 +33,7 @@
 
     --border: 217 32% 17%;
     --input: 217 32% 17%;
-    --ring: 262 83% 58%;
+    --ring: 225 95% 48%;
 
     --radius: 1rem;
   }
@@ -44,7 +46,7 @@
     @apply bg-background text-foreground;
     background-image: radial-gradient(
       circle at top right,
-      hsl(262 83% 14%),
+      hsl(225 95% 14%),
       transparent 40%
     ),
     radial-gradient(
@@ -113,5 +115,66 @@
 }
 
 .glow-text {
-  text-shadow: 0 0 15px rgba(191, 128, 255, 0.5);
+  text-shadow: 0 0 15px rgba(4, 67, 242, 0.5);
+}
+
+/* Añadir estilos para pantallas de autenticación */
+.auth-container {
+  @apply min-h-screen flex items-center justify-center p-4;
+}
+
+.auth-card {
+  @apply w-full max-w-md p-6 glass-card rounded-xl;
+}
+
+.auth-form {
+  @apply space-y-4 mt-4;
+}
+
+.auth-heading {
+  @apply text-2xl font-bold text-center mb-6 neo-gradient glow-text;
+}
+
+.auth-switch {
+  @apply mt-4 text-sm text-center;
+}
+
+/* Estilos para gráficos modernos */
+.modern-chart {
+  @apply rounded-xl overflow-hidden p-4 glass-card;
+}
+
+.chart-grid line {
+  @apply stroke-white/10;
+}
+
+/* Animación para elementos entrantes */
+.slide-in-bottom {
+  animation: slideInBottom 0.5s ease-out forwards;
+}
+
+@keyframes slideInBottom {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Efectos de neón para destacar */
+.neon-border {
+  box-shadow: 0 0 5px rgba(4, 67, 242, 0.5), 0 0 10px rgba(4, 67, 242, 0.3), inset 0 0 5px rgba(4, 67, 242, 0.2);
+}
+
+/* Efectos de línea para gráficos */
+.line-effect {
+  @apply relative overflow-hidden;
+}
+
+.line-effect::after {
+  content: '';
+  @apply absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent;
 }

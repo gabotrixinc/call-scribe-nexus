@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   Phone,
   PhoneCall,
@@ -10,49 +11,67 @@ import {
   BarChart,
   Settings,
   MessageSquare,
-  MessageCircle
+  MessageCircle,
+  UserCog
 } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { hasRole } = useAuth();
   
   const navItems = [
     { 
       name: 'Dashboard', 
       path: '/', 
-      icon: <BarChart className="w-5 h-5" /> 
+      icon: <BarChart className="w-5 h-5" />,
+      allowedRoles: ['admin', 'manager', 'agent', 'viewer']
     },
     { 
       name: 'Call Management', 
       path: '/calls', 
-      icon: <PhoneCall className="w-5 h-5" /> 
+      icon: <PhoneCall className="w-5 h-5" />,
+      allowedRoles: ['admin', 'manager', 'agent']
     },
     { 
       name: 'Agent Center', 
       path: '/agents', 
-      icon: <Users className="w-5 h-5" /> 
+      icon: <Users className="w-5 h-5" />,
+      allowedRoles: ['admin', 'manager']
     },
     { 
       name: 'Conversations', 
       path: '/conversations', 
-      icon: <MessageSquare className="w-5 h-5" /> 
+      icon: <MessageSquare className="w-5 h-5" />,
+      allowedRoles: ['admin', 'manager', 'agent']
     },
     { 
       name: 'WhatsApp Messaging', 
       path: '/messaging', 
-      icon: <MessageCircle className="w-5 h-5" /> 
+      icon: <MessageCircle className="w-5 h-5" />,
+      allowedRoles: ['admin', 'manager', 'agent']
+    },
+    { 
+      name: 'User Management', 
+      path: '/users', 
+      icon: <UserCog className="w-5 h-5" />,
+      allowedRoles: ['admin']
     },
     { 
       name: 'Settings', 
       path: '/settings', 
-      icon: <Settings className="w-5 h-5" /> 
+      icon: <Settings className="w-5 h-5" />,
+      allowedRoles: ['admin', 'manager']
     },
   ];
   
   const toggleCollapsed = () => {
     setCollapsed(!collapsed);
   };
+  
+  const filteredNavItems = navItems.filter(item => {
+    return item.allowedRoles?.some(role => hasRole(role));
+  });
   
   return (
     <div 
@@ -64,9 +83,13 @@ const Sidebar: React.FC = () => {
       <div className="p-4 border-b flex items-center">
         <div className="flex items-center space-x-2">
           <div className="bg-primary rounded-md p-1">
-            <Phone className="h-6 w-6 text-primary-foreground" />
+            <img 
+              src="/lovable-uploads/786b72bc-7591-4068-bde8-62021e00bc80.png" 
+              alt="Gabotrix CX" 
+              className="h-6 w-6" 
+            />
           </div>
-          {!collapsed && <h1 className="text-xl font-bold">CallScribe</h1>}
+          {!collapsed && <h1 className="text-xl font-bold">Gabotrix CX</h1>}
         </div>
         <Button 
           variant="ghost" 
@@ -80,7 +103,7 @@ const Sidebar: React.FC = () => {
       
       <nav className="flex-1 py-4">
         <ul className="space-y-1 px-2">
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <li key={item.path}>
               <Link to={item.path}>
                 <Button 
