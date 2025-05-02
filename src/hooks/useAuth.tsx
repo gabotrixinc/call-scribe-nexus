@@ -82,9 +82,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) throw error;
 
+      // Transform the database profile to match our User type
+      const user: User = {
+        id: data.id,
+        email: data.email,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        role: data.role as UserRole,
+        avatarUrl: data.avatar_url,
+        createdAt: data.created_at
+      };
+
       setAuthState(state => ({
         ...state,
-        user: data as User,
+        user,
         isLoading: false,
       }));
     } catch (error) {
@@ -164,9 +175,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const updateUserProfile = async (data: Partial<User>) => {
     try {
+      // Convert from camelCase to snake_case for database
+      const dbData = {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        avatar_url: data.avatarUrl,
+        role: data.role,
+      };
+      
       const { error } = await supabase
         .from('profiles')
-        .update(data)
+        .update(dbData)
         .eq('id', authState.user?.id);
       
       if (error) throw error;

@@ -70,7 +70,7 @@ const Sidebar: React.FC = () => {
   };
   
   const filteredNavItems = navItems.filter(item => {
-    return item.allowedRoles?.some(role => hasRole(role));
+    return item.allowedRoles?.some(role => hasRole(role as UserRole));
   });
   
   return (
