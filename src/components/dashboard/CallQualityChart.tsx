@@ -21,7 +21,7 @@ import { useCallsService } from '@/hooks/useCallsService';
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-background p-2 border rounded-md shadow-sm">
+      <div className="glass-panel p-3 rounded-lg border-white/10 shadow-xl">
         <p className="text-sm font-medium">{`${label}: ${payload[0].value}%`}</p>
       </div>
     );
@@ -51,17 +51,17 @@ const CallQualityChart: React.FC = () => {
     return Object.entries(metricGroups).map(([metric, data]: [string, any]) => ({
       metric,
       score: Math.round(data.total / data.count),
-      color: 'hsl(var(--primary))'
+      color: `hsla(${Math.random() * 360}, 80%, 65%, 1)`
     }));
   }, [callMetrics]);
 
   return (
-    <Card className="col-span-full xl:col-span-6">
-      <CardHeader>
-        <CardTitle>Métricas de Calidad de Voz</CardTitle>
+    <Card className="col-span-full xl:col-span-6 glass-card animate-fade-in">
+      <CardHeader className="border-b border-white/5">
+        <CardTitle className="text-lg font-semibold neo-gradient">Métricas de Calidad de Voz</CardTitle>
         <CardDescription>Puntuaciones de rendimiento para llamadas basadas en IA</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
@@ -74,7 +74,7 @@ const CallQualityChart: React.FC = () => {
               }}
               barSize={60}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-white/10" />
               <XAxis
                 dataKey="metric"
                 tickLine={false}
@@ -96,9 +96,9 @@ const CallQualityChart: React.FC = () => {
                 tick={{ fill: 'hsl(var(--muted-foreground))' }}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="score" fill="currentColor" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="score" radius={[4, 4, 0, 0]}>
                 {processedData.map((entry, index) => (
-                  <rect key={`rect-${index}`} fill={entry.color} />
+                  <rect key={`rect-${index}`} fill={entry.color} className="opacity-80 hover:opacity-100 transition-opacity" />
                 ))}
               </Bar>
             </BarChart>

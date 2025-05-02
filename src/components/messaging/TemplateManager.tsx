@@ -7,7 +7,7 @@ import TemplateList from './templates/TemplateList';
 import TemplateContent from './templates/TemplateContent';
 import DeleteTemplateDialog from './templates/DeleteTemplateDialog';
 import TemplateActions from './templates/TemplateActions';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 const TemplateManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -94,7 +94,7 @@ const TemplateManager = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <TemplateActions 
         onCreateTemplate={handleTemplateCreate}
         activeCategory={activeCategory}
@@ -104,32 +104,36 @@ const TemplateManager = () => {
       
       <div className="grid gap-6 md:grid-cols-3">
         <div className="space-y-4 md:col-span-1">
-          <TemplateList 
-            templates={filteredTemplates.length > 0 ? filteredTemplates : templates}
-            searchTerm={searchTerm}
-            setSearchTerm={handleSearchChange}
-            selectedTemplate={selectedTemplate}
-            setSelectedTemplate={setSelectedTemplate}
-            isLoading={isLoading}
-            activeCategory={activeCategory}
-          />
+          <Card className="glass-card overflow-hidden">
+            <TemplateList 
+              templates={filteredTemplates.length > 0 ? filteredTemplates : templates}
+              searchTerm={searchTerm}
+              setSearchTerm={handleSearchChange}
+              selectedTemplate={selectedTemplate}
+              setSelectedTemplate={setSelectedTemplate}
+              isLoading={isLoading}
+              activeCategory={activeCategory}
+            />
+          </Card>
         </div>
         
-        <TemplateContent 
-          selectedTemplate={selectedTemplate}
-          isEditing={isEditing}
-          editedTemplate={editedTemplate}
-          isSaving={isSaving}
-          onEdit={handleEditTemplate}
-          onDelete={() => setIsDeleteDialogOpen(true)}
-          onSave={handleSaveTemplate}
-          onCancel={handleCancelEdit}
-          onCreate={handleTemplateCreate}
-          onChange={handleEditFieldChange}
-          onAddVariable={handleAddVariable}
-          onVariableChange={handleVariableChange}
-          onRemoveVariable={handleRemoveVariable}
-        />
+        <Card className="glass-card md:col-span-2">
+          <TemplateContent 
+            selectedTemplate={selectedTemplate}
+            isEditing={isEditing}
+            editedTemplate={editedTemplate}
+            isSaving={isSaving}
+            onEdit={handleEditTemplate}
+            onDelete={() => setIsDeleteDialogOpen(true)}
+            onSave={handleSaveTemplate}
+            onCancel={handleCancelEdit}
+            onCreate={handleTemplateCreate}
+            onChange={handleEditFieldChange}
+            onAddVariable={handleAddVariable}
+            onVariableChange={handleVariableChange}
+            onRemoveVariable={handleRemoveVariable}
+          />
+        </Card>
       </div>
 
       <DeleteTemplateDialog 

@@ -22,7 +22,7 @@ import { format, subHours, addHours, startOfHour } from 'date-fns';
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-background p-2 border rounded-md shadow-sm">
+      <div className="glass-panel p-3 rounded-lg border-white/10 shadow-xl">
         <p className="text-sm font-medium">{`${label}: ${payload[0].value} llamadas`}</p>
       </div>
     );
@@ -90,12 +90,12 @@ const ActiveCallsChart: React.FC = () => {
   }, [completedCalls, activeCalls]);
 
   return (
-    <Card className="col-span-full xl:col-span-6">
-      <CardHeader>
-        <CardTitle>Volumen de llamadas (24h)</CardTitle>
+    <Card className="col-span-full xl:col-span-6 glass-card animate-fade-in">
+      <CardHeader className="border-b border-white/5">
+        <CardTitle className="text-lg font-semibold neo-gradient">Volumen de llamadas (24h)</CardTitle>
         <CardDescription>Llamadas activas durante el día</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
@@ -109,11 +109,11 @@ const ActiveCallsChart: React.FC = () => {
             >
               <defs>
                 <linearGradient id="colorCalls" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.5} />
                   <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid strokeDasharray="3 3" className="stroke-white/10" vertical={false} />
               <XAxis
                 dataKey="time"
                 tickLine={false}
@@ -138,6 +138,7 @@ const ActiveCallsChart: React.FC = () => {
                 strokeWidth={2}
                 fillOpacity={1}
                 fill="url(#colorCalls)"
+                className="animate-pulse-slow"
               />
             </AreaChart>
           </ResponsiveContainer>
