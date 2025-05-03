@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -9,15 +8,29 @@ import { AuthState } from './types';
 import { User, UserRole } from '@/types/auth';
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  // Create a temporary mock user for bypass
+  const mockUser: User = {
+    id: 'temp-user-id',
+    email: 'temp@example.com',
+    firstName: 'Temporary',
+    lastName: 'User',
+    role: 'admin',
+    avatarUrl: null,
+    createdAt: new Date().toISOString()
+  };
+
   const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    session: null,
-    isLoading: true,
+    // Bypass authentication by setting a mock user
+    user: mockUser,
+    session: { user: { id: mockUser.id } } as any,
+    isLoading: false,
   });
   
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Keep the original auth code commented out for future use
+  /*
   useEffect(() => {
     // First set up the auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -100,118 +113,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription?.unsubscribe();
     };
   }, [navigate]);
+  */
 
+  // Mock login function that always succeeds
   const login = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Inicio de sesión exitoso",
-        description: "Bienvenido a Gabotrix CX",
-      });
-      
-      return { error: null };
-    } catch (error: any) {
-      toast({
-        title: "Error al iniciar sesión",
-        description: error.message || "Verifica tus credenciales e intenta nuevamente",
-        variant: "destructive",
-      });
-      return { error };
-    }
-  };
-
-  const register = async (email: string, password: string, firstName: string, lastName: string) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-          },
-        },
-      });
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Registro exitoso",
-        description: "Tu cuenta ha sido creada. Verifica tu correo electrónico para confirmar tu cuenta.",
-      });
-      
-      return { error: null };
-    } catch (error: any) {
-      toast({
-        title: "Error al registrarse",
-        description: error.message || "Inténtalo nuevamente",
-        variant: "destructive",
-      });
-      return { error };
-    }
-  };
-
-  const logout = async () => {
-    await supabase.auth.signOut();
-    navigate('/login');
     toast({
-      title: "Sesión cerrada",
-      description: "Has cerrado sesión correctamente",
+      title: "Inicio de sesión exitoso (Modo Temporal)",
+      description: "Autenticación deshabilitada temporalmente",
+    });
+    
+    navigate('/', { replace: true });
+    return { error: null };
+  };
+
+  // Mock register function
+  const register = async (email: string, password: string, firstName: string, lastName: string) => {
+    toast({
+      title: "Registro exitoso (Modo Temporal)",
+      description: "Autenticación deshabilitada temporalmente",
+    });
+    
+    navigate('/', { replace: true });
+    return { error: null };
+  };
+
+  // Mock logout function
+  const logout = async () => {
+    toast({
+      title: "Sesión cerrada (Modo Temporal)",
+      description: "Autenticación deshabilitada temporalmente",
     });
   };
 
+  // Mock profile update function
   const updateUserProfile = async (data: Partial<User>) => {
-    try {
-      // Convert from camelCase to snake_case for database
-      const dbData = {
-        first_name: data.firstName,
-        last_name: data.lastName,
-        avatar_url: data.avatarUrl,
-        role: data.role,
-      };
-      
-      const { error } = await supabase
-        .from('profiles')
-        .update(dbData)
-        .eq('id', authState.user?.id);
-      
-      if (error) throw error;
-      
-      // Re-fetch user profile to update state
-      if (authState.user?.id) {
-        const user = await fetchUserProfile(authState.user.id);
-        if (user) {
-          setAuthState(state => ({
-            ...state,
-            user,
-          }));
-        }
-      }
-      
-      toast({
-        title: "Perfil actualizado",
-        description: "Tu información ha sido actualizada correctamente",
-      });
-      
-      return { error: null };
-    } catch (error: any) {
-      toast({
-        title: "Error al actualizar perfil",
-        description: error.message || "Inténtalo nuevamente",
-        variant: "destructive",
-      });
-      return { error };
-    }
+    toast({
+      title: "Perfil actualizado (Modo Temporal)",
+      description: "Autenticación deshabilitada temporalmente",
+    });
+    
+    return { error: null };
   };
 
   const hasRole = (requiredRoles: UserRole | UserRole[]): boolean => {
-    return hasUserRole(authState.user, requiredRoles);
+    // Always return true to bypass role checks
+    return true;
   };
 
   return (
@@ -223,7 +169,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         logout,
         updateUserProfile,
         hasRole,
-        isAuthenticated: !!authState.user,
+        isAuthenticated: true, // Always authenticated
       }}
     >
       {children}
