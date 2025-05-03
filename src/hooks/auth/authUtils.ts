@@ -31,6 +31,7 @@ export const fetchUserProfile = async (userId: string): Promise<User | null> => 
       createdAt: data.created_at
     };
 
+    console.log('Fetched and transformed user profile:', user);
     return user;
   } catch (error) {
     console.error('Error fetching user profile:', error);

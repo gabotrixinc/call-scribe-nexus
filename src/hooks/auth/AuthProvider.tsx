@@ -23,6 +23,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state changed:", event, session?.user?.id);
+        
+        // Update session immediately
         setAuthState(state => ({
           ...state,
           session,
@@ -39,6 +41,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 user,
                 isLoading: false,
               }));
+              
+              // Redirect to dashboard on successful login
+              if (event === 'SIGNED_IN' && window.location.pathname === '/login') {
+                navigate('/');
+              }
             } catch (error) {
               console.error("Error fetching user profile:", error);
               setAuthState(state => ({
@@ -92,7 +99,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -103,7 +110,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (error) throw error;
       
-      // No need to navigate here as onAuthStateChange will handle redirects
       toast({
         title: "Inicio de sesión exitoso",
         description: "Bienvenido a Gabotrix CX",

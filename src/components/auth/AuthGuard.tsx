@@ -1,7 +1,7 @@
 
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { UserRole } from '@/types/auth';
 
 interface AuthGuardProps {
@@ -17,6 +17,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
 }) => {
   const { user, isLoading, hasRole, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (!isLoading) {
@@ -25,17 +26,20 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
       // If user is not logged in, redirect to login
       if (!isAuthenticated) {
         console.log("User not authenticated, redirecting to", redirectTo);
-        navigate(redirectTo);
+        navigate(redirectTo, { 
+          replace: true, 
+          state: { from: location.pathname } 
+        });
         return;
       }
 
       // If allowedRoles is provided and user doesn't have any of the required roles, redirect
       if (allowedRoles.length > 0 && !hasRole(allowedRoles)) {
         console.log("User doesn't have required roles, redirecting to unauthorized");
-        navigate('/unauthorized');
+        navigate('/unauthorized', { replace: true });
       }
     }
-  }, [user, isLoading, navigate, redirectTo, allowedRoles, hasRole, isAuthenticated]);
+  }, [user, isLoading, navigate, redirectTo, allowedRoles, hasRole, isAuthenticated, location]);
 
   // Show loading state while checking auth status
   if (isLoading) {

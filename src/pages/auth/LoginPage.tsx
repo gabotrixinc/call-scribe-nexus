@@ -16,11 +16,11 @@ const LoginPage: React.FC = () => {
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
+  // Redirect to dashboard if already authenticated
   useEffect(() => {
-    // If user is authenticated, redirect to dashboard
     if (isAuthenticated && user) {
       console.log("User is authenticated, redirecting to dashboard", user);
-      navigate('/');
+      navigate('/', { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -34,9 +34,15 @@ const LoginPage: React.FC = () => {
     if (!error) {
       setEmail('');
       setPassword('');
-      // Navigate is now handled in useEffect
+      // Explicitly navigate after login
+      navigate('/', { replace: true });
     }
   };
+
+  // If already authenticated, don't render the login form
+  if (isAuthenticated && user) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="auth-container bg-background">
