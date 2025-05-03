@@ -1,5 +1,5 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,17 +17,22 @@ serve(async (req) => {
       return new Response('ok', { headers: corsHeaders });
     }
     
-    // For initialization requests
+    // Para inicialización y solicitudes de información
     try {
-      const { action, callId } = await req.json();
+      const body = await req.json();
+      const { action, callId } = body;
       
       if (action === 'get-connection-info') {
-        // Return WebSocket connection info
-        const baseUrl = req.url.split('/functions/')[0];
+        // Obtener la URL base para WebSocket
+        const url = new URL(req.url);
+        const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        const baseUrl = `${protocol}//${url.host}`;
+        
+        // Devolver información de conexión WebSocket
         return new Response(
           JSON.stringify({
             success: true,
-            websocketUrl: `${baseUrl.replace('http', 'ws')}/functions/transcribe-audio`,
+            websocketUrl: `${baseUrl}/functions/v1/transcribe-audio`,
             callId
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -63,7 +68,7 @@ serve(async (req) => {
 
     // Initialize variables
     let callId: string | null = null;
-    let audioContext: any = null;
+    let audioChunks: Uint8Array[] = [];
     
     // Handle messages from the client
     socket.onmessage = async (event) => {
@@ -84,17 +89,38 @@ serve(async (req) => {
         // Process audio chunks
         else if (data.type === 'audio' && data.audio) {
           try {
-            // Use Gemini API for transcription instead of simulation
-            const transcription = await transcribeWithGemini(data.audio, geminiApiKey);
+            console.log('Recibiendo datos de audio, procesando...');
             
-            // Send transcription back to client
-            socket.send(JSON.stringify({
-              type: 'transcription',
-              text: transcription,
-              isFinal: true,
-              callId: callId,
-              timestamp: new Date().toISOString()
-            }));
+            // Procesar el audio base64
+            const binaryString = atob(data.audio);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            
+            // Añadir al buffer de audio
+            audioChunks.push(bytes);
+            
+            // Si tenemos suficientes datos, realizar la transcripción
+            if (audioChunks.length >= 5) { // ~1 segundo de audio
+              const audioBuffer = concatenateAudioChunks(audioChunks);
+              audioChunks = []; // Reiniciar el buffer
+              
+              // Transcribir con API de Gemini
+              const transcription = await transcribeWithGemini(audioBuffer, geminiApiKey);
+              
+              if (transcription && transcription.trim() !== "") {
+                // Enviar transcripción al cliente
+                socket.send(JSON.stringify({
+                  type: 'transcription',
+                  text: transcription,
+                  isFinal: true,
+                  callId: callId,
+                  timestamp: new Date().toISOString()
+                }));
+              }
+            }
           } catch (error) {
             console.error('Transcription error:', error);
             socket.send(JSON.stringify({
@@ -129,6 +155,7 @@ serve(async (req) => {
     socket.onclose = (event) => {
       console.log(`WebSocket closed for call ${callId}, code: ${event.code}, reason: ${event.reason}`);
       // Cleanup resources
+      audioChunks = [];
     };
     
     // Handle errors
@@ -136,25 +163,32 @@ serve(async (req) => {
       console.error(`WebSocket error for call ${callId}:`, event);
     };
     
+    // Function to concatenate audio chunks
+    function concatenateAudioChunks(chunks: Uint8Array[]): Uint8Array {
+      // Calculate total length
+      const totalLength = chunks.reduce((acc, val) => acc + val.length, 0);
+      
+      // Create new array with total length
+      const result = new Uint8Array(totalLength);
+      
+      // Copy each chunk into result array
+      let offset = 0;
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+      }
+      
+      return result;
+    }
+    
     // Function to transcribe audio using Gemini API
-    async function transcribeWithGemini(audioData: string, apiKey: string): Promise<string> {
+    async function transcribeWithGemini(audioData: Uint8Array, apiKey: string): Promise<string> {
       try {
-        // For audio transcription, we'll use Google's Speech-to-Text API
-        // Since Gemini doesn't directly support audio transcription yet, we'll use it for post-processing
-        
-        // First, decode the base64 audio
-        const audioBuffer = Uint8Array.from(atob(audioData), c => c.charCodeAt(0));
-        
-        // Create a FormData object to send the audio
-        const formData = new FormData();
-        const blob = new Blob([audioBuffer], { type: 'audio/webm' });
-        formData.append('audio', blob, 'audio.webm');
-        
-        // Call Google Speech-to-Text API - in a production environment, you would implement this
-        // For demonstration, we'll use a simulated response
+        // Para simplificar, usamos la simulación de transcripción
+        // En un entorno de producción, se conectaría con la API de Speech-to-Text
         const transcription = simulatedTranscription();
         
-        // Use Gemini for post-processing (understanding context, cleaning up text, etc.)
+        // Usamos Gemini para mejorar la transcripción
         const enhancedTranscription = await enhanceTranscriptionWithGemini(transcription, apiKey);
         return enhancedTranscription;
       } catch (error) {
@@ -166,7 +200,7 @@ serve(async (req) => {
     // Function to enhance transcription with Gemini
     async function enhanceTranscriptionWithGemini(text: string, apiKey: string): Promise<string> {
       try {
-        // Use Gemini API to enhance the transcription
+        // Usar la API de Gemini para mejorar la transcripción
         const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
           method: 'POST',
           headers: {
@@ -201,7 +235,7 @@ serve(async (req) => {
             data.candidates[0].content.parts.length > 0) {
           return data.candidates[0].content.parts[0].text;
         } else {
-          // If we can't parse Gemini's response, return the original text
+          // Si no podemos analizar la respuesta de Gemini, devolveremos el texto original
           return text;
         }
       } catch (error) {
@@ -218,7 +252,12 @@ serve(async (req) => {
         "Necesito información sobre mi cuenta.",
         "¿Cuál es el saldo de mi cuenta?",
         "¿Puedo realizar un pago ahora mismo?",
-        "Gracias por su ayuda."
+        "Gracias por su ayuda.",
+        "Quiero reportar un problema con mi servicio.",
+        "¿Cómo cambio mi contraseña?",
+        "Necesito hablar con un supervisor.",
+        "¿Pueden enviarme una factura por correo electrónico?",
+        "¿Cuándo es la fecha límite de pago?"
       ];
       
       return phrases[Math.floor(Math.random() * phrases.length)];

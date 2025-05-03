@@ -17,7 +17,8 @@ import {
   Pause,
   Play, 
   CircleStop,
-  MessageSquare
+  MessageSquare,
+  PhoneOff
 } from 'lucide-react';
 import { useCallsService } from '@/hooks/useCallsService';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +48,7 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
   const [activeTab, setActiveTab] = useState<string>("controls");
   const [isCallActive, setIsCallActive] = useState(true);
   const { toast } = useToast();
+  const [audioOutput, setAudioOutput] = useState<HTMLAudioElement | null>(null);
 
   // Set up interval to check if call is still active
   useEffect(() => {
@@ -96,6 +98,31 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
     return () => clearInterval(timer);
   }, [startTime, isCallActive]);
 
+  // Inicializar reproducción de audio saliente
+  useEffect(() => {
+    const audio = new Audio('/audio/ringtone.mp3');
+    audio.loop = true;
+    setAudioOutput(audio);
+    
+    // Reproducir tono de llamada cuando se inicia la llamada
+    if (isCallActive) {
+      audio.play().catch(err => console.error("Error reproduciendo audio:", err));
+    }
+    
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, []);
+
+  // Detener el tono cuando la llamada no está activa
+  useEffect(() => {
+    if (!isCallActive && audioOutput) {
+      audioOutput.pause();
+      audioOutput.currentTime = 0;
+    }
+  }, [isCallActive, audioOutput]);
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -105,8 +132,33 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
   const handleEndCall = async () => {
     setIsEnding(true);
     try {
+      // Primero, terminar la llamada en Twilio a través de la API
+      const { data: callData, error: callError } = await supabase
+        .from('calls')
+        .select('twilio_call_sid')
+        .eq('id', callId)
+        .single();
+        
+      if (!callError && callData?.twilio_call_sid) {
+        await supabase.functions.invoke('make-call', {
+          body: {
+            action: 'end-call',
+            callSid: callData.twilio_call_sid
+          }
+        });
+      }
+      
+      // Luego actualizar el estado en la base de datos
       await endCall.mutateAsync(callId);
+      
       setIsCallActive(false);
+      
+      // Detener reproducción de audio
+      if (audioOutput) {
+        audioOutput.pause();
+        audioOutput.currentTime = 0;
+      }
+      
       toast({
         title: "Llamada finalizada",
         description: "La llamada se ha terminado correctamente",
@@ -125,7 +177,12 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
 
   const toggleMute = () => {
     setIsMuted(!isMuted);
-    // Emitir comando para silenciar la llamada mediante API de Twilio
+    
+    // Si tenemos un audio en reproducción, alternar el silencio
+    if (audioOutput) {
+      audioOutput.muted = !isMuted;
+    }
+    
     toast({
       title: isMuted ? "Micrófono activado" : "Micrófono desactivado",
       description: isMuted ? "Ahora puedes ser escuchado" : "Has silenciado el micrófono",
@@ -134,7 +191,16 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
 
   const togglePause = () => {
     setIsPaused(!isPaused);
-    // Emitir comando para pausar la llamada mediante API de Twilio
+    
+    // Alternar pausa/reproducción del audio
+    if (audioOutput) {
+      if (!isPaused) {
+        audioOutput.pause();
+      } else {
+        audioOutput.play().catch(err => console.error("Error reproduciendo audio:", err));
+      }
+    }
+    
     toast({
       title: isPaused ? "Llamada reanudada" : "Llamada en pausa",
       description: isPaused ? "La música de espera se ha detenido" : "Se ha activado la música de espera",
@@ -142,7 +208,7 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
   };
 
   return (
-    <Card className={`border-${isCallActive ? 'green' : 'red'}-500 shadow-md flex flex-col h-[400px]`}>
+    <Card className={`border-${isCallActive ? 'green' : 'red'}-500 shadow-md flex flex-col h-[400px] border-2 ${isCallActive ? 'border-green-500 dark:border-green-700' : 'border-red-500 dark:border-red-700'}`}>
       <CardHeader className={`bg-${isCallActive ? 'green' : 'red'}-50 dark:bg-${isCallActive ? 'green' : 'red'}-900/20 pb-2`}>
         <div className="flex items-center justify-between">
           <div>
@@ -180,7 +246,7 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
               <Button 
                 variant="outline" 
                 size="icon"
-                className={isMuted ? "bg-red-100 text-red-500" : ""}
+                className={isMuted ? "bg-red-100 text-red-500 dark:bg-red-900/30 dark:text-red-400" : ""}
                 onClick={toggleMute}
                 disabled={!isCallActive}
               >
@@ -190,7 +256,7 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
               <Button
                 variant="outline"
                 size="icon"
-                className={isPaused ? "bg-amber-100 text-amber-500" : ""}
+                className={isPaused ? "bg-amber-100 text-amber-500 dark:bg-amber-900/30 dark:text-amber-400" : ""}
                 onClick={togglePause}
                 disabled={!isCallActive}
               >
@@ -203,16 +269,23 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
                 onClick={handleEndCall}
                 disabled={isEnding || !isCallActive}
               >
-                <CircleStop />
+                <PhoneOff />
               </Button>
             </div>
             
             <div className="mt-4 text-center text-sm text-muted-foreground">
               <p>ID de llamada: {callId.substring(0, 8)}...</p>
               <p>Inicio: {new Date(startTime).toLocaleTimeString()}</p>
-              <p>Estado: <span className={`text-${isCallActive ? 'green' : 'red'}-600 dark:text-${isCallActive ? 'green' : 'red'}-400`}>
+              <p>Estado: <span className={`text-${isCallActive ? 'green' : 'red'}-600 dark:text-${isCallActive ? 'green' : 'red'}-400 font-medium`}>
                 {isCallActive ? 'Activa' : 'Finalizada'}
               </span></p>
+              {isCallActive && (
+                <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-md border border-amber-200 dark:border-amber-900/50">
+                  <p className="text-amber-700 dark:text-amber-400">
+                    Recuerde: Para finalizar la llamada correctamente debe usar el botón "Finalizar llamada"
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
           
@@ -223,7 +296,7 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
               onClick={handleEndCall}
               disabled={isEnding || !isCallActive}
             >
-              {isCallActive ? 'Finalizar llamada' : 'Llamada finalizada'}
+              {isCallActive ? (isEnding ? 'Finalizando...' : 'Finalizar llamada') : 'Llamada finalizada'}
             </Button>
           </CardFooter>
         </TabsContent>

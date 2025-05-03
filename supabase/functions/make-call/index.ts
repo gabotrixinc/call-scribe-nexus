@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const corsHeaders = {
@@ -31,16 +30,21 @@ serve(async (req) => {
       );
     }
     
-    const { phoneNumber, agentId, testMode = false, action, direction = 'outbound' } = body;
+    const { phoneNumber, agentId, testMode = false, action, direction = 'outbound', callSid } = body;
     
     // Handle different actions
     if (action === 'check-call-status') {
-      const { callSid } = body;
       if (!callSid) {
         throw new Error('Call SID is required for status check');
       }
       
       return await checkCallStatus(callSid);
+    } else if (action === 'end-call') {
+      if (!callSid) {
+        throw new Error('Call SID is required to end call');
+      }
+      
+      return await endCall(callSid);
     }
     
     console.log(`Request received: phoneNumber=${phoneNumber}, agentId=${agentId}, testMode=${testMode}, direction=${direction}`);
@@ -332,6 +336,75 @@ async function checkCallStatus(callSid) {
     );
   } catch (error) {
     console.error('Error al verificar estado de llamada:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  }
+}
+
+// Función para finalizar una llamada en Twilio
+async function endCall(callSid) {
+  try {
+    const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
+    const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+    
+    if (!accountSid || !authToken) {
+      throw new Error('Credenciales de Twilio no configuradas');
+    }
+    
+    console.log(`Finalizando llamada con SID: ${callSid}`);
+    
+    const credentials = btoa(`${accountSid}:${authToken}`);
+    const twilioApiUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${callSid}.json`;
+    
+    const formData = new URLSearchParams();
+    formData.append('Status', 'completed');
+    
+    const response = await fetch(twilioApiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString()
+    });
+    
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      console.error('Error al finalizar llamada en Twilio:', responseData);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Error al finalizar llamada: ${responseData.message || 'Error desconocido'}`,
+          details: responseData
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    
+    console.log('Llamada finalizada exitosamente en Twilio:', responseData);
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Llamada finalizada exitosamente',
+        details: responseData
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Error al finalizar llamada:', error);
     return new Response(
       JSON.stringify({
         success: false,

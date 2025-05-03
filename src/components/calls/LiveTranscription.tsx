@@ -28,6 +28,9 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
   const socketRef = useRef<WebSocket | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
   
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -49,6 +52,7 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
     
     return () => {
       disconnectWebSocket();
+      stopAudio();
     };
   }, [isActive, isConnected]);
   
@@ -122,6 +126,8 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
           title: "Llamada finalizada",
           description: "La llamada ha terminado desde el otro lado.",
         });
+
+        stopAudio();
       }
     } catch (error) {
       console.error('Error checking call status:', error);
@@ -133,6 +139,7 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
       setIsConnecting(true);
       setErrorMessage(null);
       
+      // Usar una URL segura (HTTPS) para la conexión WebSocket
       const { data } = await supabase.functions.invoke('transcribe-audio', {
         body: { action: 'get-connection-info', callId }
       });
@@ -141,7 +148,14 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
         throw new Error('No se pudo obtener la URL para la transcripción');
       }
       
-      const socket = new WebSocket(data.websocketUrl);
+      // Asegurarse de que la URL sea WSS para conexiones HTTPS
+      let wsUrl = data.websocketUrl;
+      if (window.location.protocol === 'https:' && wsUrl.startsWith('ws:')) {
+        wsUrl = wsUrl.replace('ws:', 'wss:');
+      }
+      
+      console.log("Conectando WebSocket a:", wsUrl);
+      const socket = new WebSocket(wsUrl);
       socketRef.current = socket;
       
       socket.onopen = () => {
@@ -159,6 +173,10 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
         if (message.type === 'init-ack') {
           setIsConnected(true);
           setIsConnecting(false);
+          // Iniciar la captura de audio cuando la conexión está establecida
+          if (!audioEnabled) {
+            requestAudioPermissions();
+          }
         }
         else if (message.type === 'transcription') {
           // Get timestamp if provided, or use current time
@@ -210,6 +228,8 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
       socket.onclose = (event) => {
         console.log(`WebSocket closed: ${event.code} ${event.reason}`);
         setIsConnected(false);
+        setAudioEnabled(false);
+        stopAudio();
       };
       
       socket.onerror = (error) => {
@@ -217,6 +237,8 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
         setErrorMessage('Error en la conexión de WebSocket');
         setIsConnected(false);
         setIsConnecting(false);
+        setAudioEnabled(false);
+        stopAudio();
       };
     } catch (error) {
       console.error('Error connecting to transcription service:', error);
@@ -242,17 +264,112 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
           socketRef.current = null;
         }
         setIsConnected(false);
+        setAudioEnabled(false);
       }, 500);
     } else {
       setIsConnected(false);
+      setAudioEnabled(false);
     }
+    
+    stopAudio();
+  };
+
+  const requestAudioPermissions = async () => {
+    try {
+      // Solicitar permisos de micrófono
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
+      
+      audioStreamRef.current = stream;
+      audioContextRef.current = new AudioContext();
+      
+      // Procesar el audio capturado
+      const source = audioContextRef.current.createMediaStreamSource(stream);
+      const processor = audioContextRef.current.createScriptProcessor(4096, 1, 1);
+      
+      processor.onaudioprocess = (e) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+          const inputData = e.inputBuffer.getChannelData(0);
+          const audioData = encodeAudio(inputData);
+          
+          // Enviar datos de audio al servidor
+          socketRef.current.send(JSON.stringify({
+            type: 'audio',
+            audio: audioData,
+            callId: callId
+          }));
+        }
+      };
+      
+      source.connect(processor);
+      processor.connect(audioContextRef.current.destination);
+      
+      setAudioEnabled(true);
+      toast({
+        title: "Micrófono activado",
+        description: "Ahora puedes hablar y se transcribirá tu voz."
+      });
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      toast({
+        title: "Error de micrófono",
+        description: "No se pudo acceder al micrófono. Verifica los permisos.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const stopAudio = () => {
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(track => track.stop());
+      audioStreamRef.current = null;
+    }
+    
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(console.error);
+      audioContextRef.current = null;
+    }
+    
+    setAudioEnabled(false);
+  };
+  
+  // Función para codificar audio para envío por WebSocket
+  const encodeAudio = (float32Array: Float32Array): string => {
+    const int16Array = new Int16Array(float32Array.length);
+    
+    for (let i = 0; i < float32Array.length; i++) {
+      // Convertir Float32 (-1.0 to 1.0) a Int16 (-32768 to 32767)
+      const s = Math.max(-1, Math.min(1, float32Array[i]));
+      int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    
+    // Convertir a base64 para envío por WebSocket
+    const buffer = new ArrayBuffer(int16Array.length * 2);
+    const view = new DataView(buffer);
+    for (let i = 0; i < int16Array.length; i++) {
+      view.setInt16(i * 2, int16Array[i], true); // true = little endian
+    }
+    
+    const binary = new Uint8Array(buffer);
+    let base64 = '';
+    const chunk = 1024;
+    for (let i = 0; i < binary.length; i += chunk) {
+      base64 += String.fromCharCode.apply(null, binary.subarray(i, i + chunk) as unknown as number[]);
+    }
+    
+    return btoa(base64);
   };
 
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-lg flex items-center gap-2">
-          {isConnected ? (
+          {audioEnabled ? (
             <Mic className="h-4 w-4 text-green-500 animate-pulse" />
           ) : (
             <MicOff className="h-4 w-4 text-muted-foreground" />
@@ -263,7 +380,7 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
             "ml-2",
             isConnected && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
           )}>
-            {isConnected ? "Conectado" : "Desconectado"}
+            {isConnected ? (audioEnabled ? "Micrófono activo" : "Conectado") : "Desconectado"}
           </Badge>
         </CardTitle>
         
@@ -277,7 +394,20 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
       
       <CardContent className="flex-grow overflow-hidden p-0">
         {errorMessage ? (
-          <div className="p-4 text-sm text-destructive">{errorMessage}</div>
+          <div className="p-4 text-sm text-destructive">
+            {errorMessage}
+            {errorMessage.includes('WebSocket connection may not be initiated') && (
+              <div className="mt-2">
+                <p>Error de seguridad: La conexión debe ser segura (WSS).</p>
+                <button 
+                  onClick={connectWebSocket} 
+                  className="mt-2 px-3 py-1 bg-primary text-primary-foreground text-xs rounded-md"
+                >
+                  Reintentar conexión
+                </button>
+              </div>
+            )}
+          </div>
         ) : transcript.length === 0 && !isConnecting ? (
           <div className="h-full flex items-center justify-center text-sm text-muted-foreground p-4">
             {isActive ? 
