@@ -24,3 +24,5 @@ export function useIsMobile() {
   }
 }
 
+// Export the original name as well for backward compatibility
+export const useMobile = useIsMobile
