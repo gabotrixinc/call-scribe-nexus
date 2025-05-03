@@ -1,137 +1,185 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { UserRole } from '@/types/auth';
-import { 
-  Phone,
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import {
+  LayoutDashboard,
   PhoneCall,
-  Users,
-  BarChart,
-  Settings,
   MessageSquare,
-  MessageCircle,
-  UserCog
+  Users,
+  Settings,
+  ChevronLeft,
+  LogOut,
+  MessagesSquare,
+  UserCog,
+  Import,
 } from 'lucide-react';
+import { useMobile } from '@/hooks/use-mobile';
 
-const Sidebar: React.FC = () => {
-  const [collapsed, setCollapsed] = useState(false);
-  const location = useLocation();
-  const { hasRole } = useAuth();
-  
-  const navItems = [
-    { 
-      name: 'Dashboard', 
-      path: '/', 
-      icon: <BarChart className="w-5 h-5" />,
-      allowedRoles: ['admin', 'manager', 'agent', 'viewer']
-    },
-    { 
-      name: 'Call Management', 
-      path: '/calls', 
-      icon: <PhoneCall className="w-5 h-5" />,
-      allowedRoles: ['admin', 'manager', 'agent']
-    },
-    { 
-      name: 'Agent Center', 
-      path: '/agents', 
-      icon: <Users className="w-5 h-5" />,
-      allowedRoles: ['admin', 'manager']
-    },
-    { 
-      name: 'Conversations', 
-      path: '/conversations', 
-      icon: <MessageSquare className="w-5 h-5" />,
-      allowedRoles: ['admin', 'manager', 'agent']
-    },
-    { 
-      name: 'WhatsApp Messaging', 
-      path: '/messaging', 
-      icon: <MessageCircle className="w-5 h-5" />,
-      allowedRoles: ['admin', 'manager', 'agent']
-    },
-    { 
-      name: 'User Management', 
-      path: '/users', 
-      icon: <UserCog className="w-5 h-5" />,
-      allowedRoles: ['admin']
-    },
-    { 
-      name: 'Settings', 
-      path: '/settings', 
-      icon: <Settings className="w-5 h-5" />,
-      allowedRoles: ['admin', 'manager']
-    },
-  ];
-  
-  const toggleCollapsed = () => {
-    setCollapsed(!collapsed);
-  };
-  
-  const filteredNavItems = navItems.filter(item => {
-    return item.allowedRoles?.some(role => hasRole(role as UserRole));
-  });
-  
+interface NavLinkProps {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+  disabled?: boolean;
+}
+
+const NavLink: React.FC<NavLinkProps> = ({
+  to,
+  icon,
+  label,
+  active,
+  onClick,
+  disabled = false,
+}) => {
+  if (disabled) {
+    return (
+      <div
+        className={cn(
+          'flex items-center gap-4 px-4 py-3 rounded-lg text-muted-foreground',
+          'opacity-50 cursor-not-allowed'
+        )}
+      >
+        {icon}
+        <span>{label}</span>
+      </div>
+    );
+  }
+
   return (
-    <div 
+    <Link
+      to={to}
+      onClick={onClick}
       className={cn(
-        "bg-background border-r flex flex-col transition-all duration-300 h-screen sticky top-0",
-        collapsed ? "w-16" : "w-64"
+        'flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-secondary transition-colors',
+        active && 'bg-secondary'
       )}
     >
-      <div className="p-4 border-b flex items-center">
-        <div className="flex items-center space-x-2">
-          <div className="bg-primary rounded-md p-1">
-            <img 
-              src="/lovable-uploads/786b72bc-7591-4068-bde8-62021e00bc80.png" 
-              alt="Gabotrix CX" 
-              className="h-6 w-6" 
-            />
-          </div>
-          {!collapsed && <h1 className="text-xl font-bold">Gabotrix CX</h1>}
+      {icon}
+      <span>{label}</span>
+    </Link>
+  );
+};
+
+const Sidebar: React.FC = () => {
+  const { logout, hasRole, isAuthenticated } = useAuth();
+  const { pathname } = useLocation();
+  const { isCollapsed, setIsCollapsed, isMobile } = useMobile();
+  
+  const handleLogout = async () => {
+    await logout();
+  };
+  
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return (
+    <div
+      className={cn(
+        'h-screen flex flex-col border-r border-border bg-card transition-all duration-300 ease-in-out',
+        {
+          'w-[280px]': !isCollapsed,
+          'w-[72px]': isCollapsed,
+        }
+      )}
+    >
+      <div className="flex justify-between items-center h-16 px-4 border-b border-border">
+        <div className={cn('flex items-center', isCollapsed && 'justify-center w-full')}>
+          {!isCollapsed && <span className="text-xl font-bold">MiContactCenter</span>}
+          {isCollapsed && <span className="text-xl font-bold">MCC</span>}
         </div>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={toggleCollapsed}
-          className={cn("ml-auto", collapsed && "mx-auto")}
-        >
-          {collapsed ? "→" : "←"}
-        </Button>
+        {!isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="h-8 w-8"
+          >
+            <ChevronLeft
+              className={cn('h-4 w-4 transition-transform', isCollapsed && 'rotate-180')}
+            />
+            <span className="sr-only">Toggle Sidebar</span>
+          </Button>
+        )}
       </div>
-      
-      <nav className="flex-1 py-4">
-        <ul className="space-y-1 px-2">
-          {filteredNavItems.map((item) => (
-            <li key={item.path}>
-              <Link to={item.path}>
-                <Button 
-                  variant={location.pathname === item.path ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full justify-start", 
-                    collapsed ? "justify-center px-2" : "px-3"
-                  )}
-                >
-                  {item.icon}
-                  {!collapsed && (
-                    <span className="ml-2">{item.name}</span>
-                  )}
-                </Button>
-              </Link>
-            </li>
-          ))}
-        </ul>
+
+      <nav className="flex-grow pt-4 overflow-y-auto">
+        <div className="space-y-1 px-2">
+          <NavLink
+            to="/dashboard"
+            icon={<LayoutDashboard className="h-5 w-5" />}
+            label={isCollapsed ? '' : 'Dashboard'}
+            active={pathname === '/dashboard'}
+            onClick={() => isMobile && setIsCollapsed(true)}
+          />
+          <NavLink
+            to="/calls"
+            icon={<PhoneCall className="h-5 w-5" />}
+            label={isCollapsed ? '' : 'Llamadas'}
+            active={pathname === '/calls'}
+            onClick={() => isMobile && setIsCollapsed(true)}
+          />
+          <NavLink
+            to="/messaging"
+            icon={<MessageSquare className="h-5 w-5" />}
+            label={isCollapsed ? '' : 'WhatsApp'}
+            active={pathname === '/messaging'}
+            onClick={() => isMobile && setIsCollapsed(true)}
+          />
+          <NavLink
+            to="/conversations"
+            icon={<MessagesSquare className="h-5 w-5" />}
+            label={isCollapsed ? '' : 'Conversaciones'}
+            active={pathname === '/conversations'}
+            onClick={() => isMobile && setIsCollapsed(true)}
+          />
+          <NavLink
+            to="/agents"
+            icon={<Users className="h-5 w-5" />}
+            label={isCollapsed ? '' : 'Agentes'}
+            active={pathname === '/agents'}
+            onClick={() => isMobile && setIsCollapsed(true)}
+          />
+          <NavLink
+            to="/automations"
+            icon={<Import className="h-5 w-5" />}
+            label={isCollapsed ? '' : 'Automatizaciones'}
+            active={pathname === '/automations'}
+            onClick={() => isMobile && setIsCollapsed(true)}
+          />
+          {hasRole('admin') && (
+            <NavLink
+              to="/users"
+              icon={<UserCog className="h-5 w-5" />}
+              label={isCollapsed ? '' : 'Usuarios'}
+              active={pathname === '/users'}
+              onClick={() => isMobile && setIsCollapsed(true)}
+            />
+          )}
+        </div>
       </nav>
-      
-      <div className="p-4 border-t mt-auto">
-        <div className={cn(
-          "bg-accent p-3 rounded-md flex items-center",
-          collapsed ? "justify-center" : "justify-between"
-        )}>
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse-slow"></div>
-          {!collapsed && <span className="ml-2 text-sm font-medium">System Online</span>}
+
+      <div className="p-2 border-t border-border">
+        <NavLink
+          to="/settings"
+          icon={<Settings className="h-5 w-5" />}
+          label={isCollapsed ? '' : 'Configuración'}
+          active={pathname === '/settings'}
+          onClick={() => isMobile && setIsCollapsed(true)}
+        />
+        <div
+          className={cn(
+            'flex items-center gap-4 px-4 py-3 rounded-lg text-red-500 hover:bg-secondary transition-colors cursor-pointer',
+            'mt-1'
+          )}
+          onClick={handleLogout}
+        >
+          <LogOut className="h-5 w-5" />
+          {!isCollapsed && <span>Cerrar sesión</span>}
         </div>
       </div>
     </div>

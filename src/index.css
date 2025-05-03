@@ -39,7 +39,8 @@
   }
 
   * {
-    @apply border-border;
+    @apply border-border font-sans;
+    font-family: 'Open Sans', sans-serif;
   }
 
   body {
@@ -106,18 +107,19 @@
   @apply backdrop-blur-lg bg-white/5 border border-white/10 shadow-lg;
 }
 
-/* Mejoramos la legibilidad de los títulos con gradiente */
+/* Mejorado el estilo de los títulos con gradiente para mejor legibilidad */
 .neo-gradient {
-  @apply bg-gradient-to-br from-white via-primary/80 to-primary/20 bg-clip-text text-transparent;
+  @apply bg-gradient-to-br from-white via-blue-300 to-blue-500 bg-clip-text text-transparent;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
 }
 
 .glass-panel {
   @apply backdrop-blur-md bg-secondary/30 border border-white/10 shadow-lg;
 }
 
-/* Mejoramos el brillo del texto para que sea más legible */
+/* Mejorado el brillo del texto para que sea más legible */
 .glow-text {
-  text-shadow: 0 0 15px rgba(255, 255, 255, 0.7), 0 0 10px rgba(4, 67, 242, 0.5);
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.5), 0 0 5px rgba(4, 67, 242, 0.4);
 }
 
 /* Añadir estilos para pantallas de autenticación */

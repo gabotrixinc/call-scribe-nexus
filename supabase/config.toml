@@ -17,3 +17,8 @@ verify_jwt = false
 [functions.send-whatsapp-message]
 verify_jwt = false
 
+[functions.inbound-call]
+verify_jwt = false
+
+[functions.stream-audio]
+verify_jwt = false

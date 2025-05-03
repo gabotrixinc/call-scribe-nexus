@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Input } from '@/components/ui/input';
@@ -14,13 +15,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from '@/components/ui/use-toast';
-import { Settings, Key, MessageSquare, Phone, Loader2 } from 'lucide-react';
+import { Settings, Key, MessageSquare, Phone, Import } from 'lucide-react';
 import { useSettingsService, WebhookUrls } from '@/hooks/useSettingsService';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
+import ApiConfiguration from '@/components/settings/ApiConfiguration';
 
 const SettingsPage: React.FC = () => {
-  const { settings, isLoadingSettings, updateSettings, testApiConnection } = useSettingsService();
+  const { settings, isLoadingSettings, updateSettings } = useSettingsService();
   const { toast } = useToast();
   
   const generalForm = useForm<{
@@ -29,13 +31,6 @@ const SettingsPage: React.FC = () => {
     default_language: string;
     analytics_enabled: boolean;
     notifications_enabled: boolean;
-  }>();
-
-  const apiForm = useForm<{
-    gemini_api_key: string;
-    tts_api_key: string;
-    google_project_id: string;
-    verify_connection: boolean;
   }>();
 
   const voiceForm = useForm<{
@@ -63,13 +58,6 @@ const SettingsPage: React.FC = () => {
         notifications_enabled: settings.notifications_enabled ?? true,
       });
 
-      apiForm.reset({
-        gemini_api_key: settings.gemini_api_key || '',
-        tts_api_key: settings.tts_api_key || '',
-        google_project_id: settings.google_project_id || '',
-        verify_connection: true,
-      });
-
       voiceForm.reset({
         default_voice: settings.default_voice || '',
         speaking_rate: settings.speaking_rate || 1.0,
@@ -86,7 +74,7 @@ const SettingsPage: React.FC = () => {
         webhook_secret: settings.webhook_secret || '',
       });
     }
-  }, [settings, generalForm, apiForm, voiceForm, webhookForm]);
+  }, [settings, generalForm, voiceForm, webhookForm]);
   
   const handleSaveGeneral = async (data: any) => {
     try {
@@ -100,27 +88,6 @@ const SettingsPage: React.FC = () => {
     } catch (error) {
       console.error('Error saving general settings:', error);
     }
-  };
-  
-  const handleSaveAPI = async (data: any) => {
-    try {
-      if (data.verify_connection) {
-        const success = await testApiConnection();
-        if (!success) return;
-      }
-      
-      await updateSettings.mutateAsync({
-        gemini_api_key: data.gemini_api_key,
-        tts_api_key: data.tts_api_key,
-        google_project_id: data.google_project_id,
-      });
-    } catch (error) {
-      console.error('Error saving API settings:', error);
-    }
-  };
-  
-  const handleTestConnection = async () => {
-    await testApiConnection();
   };
   
   const handleSaveVoice = async (data: any) => {
@@ -167,7 +134,7 @@ const SettingsPage: React.FC = () => {
     return (
       <Layout>
         <div className="flex justify-center items-center p-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
           <span className="ml-2">Cargando configuración...</span>
         </div>
       </Layout>
@@ -178,16 +145,17 @@ const SettingsPage: React.FC = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configuración</h1>
+          <h1 className="text-3xl font-bold tracking-tight neo-gradient">Configuración</h1>
           <p className="text-muted-foreground">Configure su plataforma de centro de contacto.</p>
         </div>
         
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full md:w-auto grid-cols-2 md:grid-cols-4">
+          <TabsList className="grid w-full md:w-auto grid-cols-2 md:grid-cols-5">
             <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="api">Integración API</TabsTrigger>
-            <TabsTrigger value="voice">Configuración de Voz</TabsTrigger>
+            <TabsTrigger value="api">APIs Unificadas</TabsTrigger>
+            <TabsTrigger value="voice">Voz</TabsTrigger>
             <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+            <TabsTrigger value="integrations">Integraciones</TabsTrigger>
           </TabsList>
           
           <TabsContent value="general" className="mt-4 space-y-4">
@@ -278,87 +246,7 @@ const SettingsPage: React.FC = () => {
           </TabsContent>
           
           <TabsContent value="api" className="mt-4 space-y-4">
-            <Card>
-              <Form {...apiForm}>
-                <form onSubmit={apiForm.handleSubmit(handleSaveAPI)}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Key className="h-5 w-5 text-primary" />
-                      <span>Configuración API</span>
-                    </CardTitle>
-                    <CardDescription>Configurar claves API para servicios de Google Cloud</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <FormField
-                      control={apiForm.control}
-                      name="gemini_api_key"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Clave API de Google Gemini</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="password" 
-                              placeholder="Ingrese su clave API de Gemini" 
-                              {...field} 
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={apiForm.control}
-                      name="tts_api_key"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Clave API de Google TTS</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="password" 
-                              placeholder="Ingrese su clave API de TTS" 
-                              {...field} 
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={apiForm.control}
-                      name="google_project_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>ID del Proyecto de Google Cloud</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Ingrese su ID del Proyecto" 
-                              {...field} 
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={apiForm.control}
-                      name="verify_connection"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center space-x-2">
-                          <FormControl>
-                            <Switch 
-                              checked={field.value} 
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <FormLabel>Verificar conexiones API al guardar</FormLabel>
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                  <CardFooter className="flex justify-between">
-                    <Button variant="outline" type="button" onClick={handleTestConnection}>Probar conexión</Button>
-                    <Button type="submit">Guardar claves API</Button>
-                  </CardFooter>
-                </form>
-              </Form>
-            </Card>
+            <ApiConfiguration />
           </TabsContent>
           
           <TabsContent value="voice" className="mt-4 space-y-4">
@@ -536,6 +424,67 @@ const SettingsPage: React.FC = () => {
                   </CardFooter>
                 </form>
               </Form>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="integrations" className="mt-4 space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Import className="h-5 w-5 text-primary" />
+                  <span>Integraciones Externas</span>
+                </CardTitle>
+                <CardDescription>Gestione la conexión con plataformas de terceros</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="border rounded-lg p-4">
+                    <h3 className="text-lg font-medium mb-2">Zapier</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Conecte su centro de contacto con miles de aplicaciones a través de Zapier.
+                    </p>
+                    <Button variant="outline" size="sm">
+                      Configurar Integración
+                    </Button>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <h3 className="text-lg font-medium mb-2">Make.com</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Automatice flujos de trabajo con Make.com (antes Integromat).
+                    </p>
+                    <Button variant="outline" size="sm">
+                      Configurar Integración
+                    </Button>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <h3 className="text-lg font-medium mb-2">Salesforce</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Sincronice contactos y casos con su instancia de Salesforce.
+                    </p>
+                    <Button variant="outline" size="sm">
+                      Configurar Integración
+                    </Button>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <h3 className="text-lg font-medium mb-2">HubSpot</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Sincronice contactos y seguimiento de leads con HubSpot.
+                    </p>
+                    <Button variant="outline" size="sm">
+                      Configurar Integración
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="flex justify-center mt-4">
+                  <Button variant="outline">
+                    Ver más integraciones disponibles
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
