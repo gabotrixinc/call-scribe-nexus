@@ -10,6 +10,13 @@ import { useSettingsService } from '@/hooks/useSettingsService';
 import { useToast } from '@/components/ui/use-toast';
 import { Key, Phone, MessageSquare, Import } from 'lucide-react';
 
+// Define types for webhook URLs
+interface WebhookUrls {
+  zapier?: string;
+  make?: string;
+  [key: string]: string | undefined;
+}
+
 const ApiConfiguration: React.FC = () => {
   const { settings, isLoadingSettings, updateSettings, testTwilioConnection, testApiConnection } = useSettingsService();
   const { toast } = useToast();
@@ -30,6 +37,22 @@ const ApiConfiguration: React.FC = () => {
 
   useEffect(() => {
     if (settings) {
+      // Parse webhook_urls if it exists and is a string
+      let webhookUrls: WebhookUrls = {};
+      
+      if (settings.webhook_urls) {
+        if (typeof settings.webhook_urls === 'string') {
+          try {
+            webhookUrls = JSON.parse(settings.webhook_urls);
+          } catch (e) {
+            console.error('Error parsing webhook_urls:', e);
+            webhookUrls = {};
+          }
+        } else if (typeof settings.webhook_urls === 'object') {
+          webhookUrls = settings.webhook_urls as WebhookUrls;
+        }
+      }
+      
       setApiKeys({
         gemini_api_key: settings.gemini_api_key || '',
         tts_api_key: settings.tts_api_key || '',
@@ -37,8 +60,8 @@ const ApiConfiguration: React.FC = () => {
         twilio_account_sid: settings.twilio_account_sid || '',
         twilio_auth_token: settings.twilio_auth_token || '',
         twilio_phone_number: settings.twilio_phone_number || '',
-        zapier_webhook_url: settings.webhook_urls?.zapier || '',
-        make_webhook_url: settings.webhook_urls?.make || '',
+        zapier_webhook_url: webhookUrls.zapier || '',
+        make_webhook_url: webhookUrls.make || '',
       });
     }
   }, [settings]);
@@ -118,11 +141,17 @@ const ApiConfiguration: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const webhookUrls = {
-        ...(settings?.webhook_urls || {}),
-        zapier: apiKeys.zapier_webhook_url,
-        make: apiKeys.make_webhook_url,
-      };
+      // Create webhookUrls object
+      const webhookUrls: WebhookUrls = {};
+      
+      // Add current webhook values from settings if they exist
+      if (settings?.webhook_urls && typeof settings.webhook_urls === 'object') {
+        Object.assign(webhookUrls, settings.webhook_urls);
+      }
+      
+      // Update with new values
+      webhookUrls.zapier = apiKeys.zapier_webhook_url;
+      webhookUrls.make = apiKeys.make_webhook_url;
       
       await updateSettings.mutateAsync({
         webhook_urls: webhookUrls,

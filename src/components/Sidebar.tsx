@@ -16,7 +16,7 @@ import {
   UserCog,
   Import,
 } from 'lucide-react';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NavLinkProps {
   to: string;
@@ -67,7 +67,7 @@ const NavLink: React.FC<NavLinkProps> = ({
 const Sidebar: React.FC = () => {
   const { logout, hasRole, isAuthenticated } = useAuth();
   const { pathname } = useLocation();
-  const { isCollapsed, setIsCollapsed, isMobile } = useMobile();
+  const { isMobile, isCollapsed, setIsCollapsed } = useIsMobile();
   
   const handleLogout = async () => {
     await logout();

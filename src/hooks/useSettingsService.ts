@@ -11,6 +11,9 @@ export type WebhookUrls = {
   call_start?: string;
   call_end?: string;
   escalation?: string;
+  zapier?: string;
+  make?: string;
+  [key: string]: string | undefined;
 };
 
 export const useSettingsService = () => {
