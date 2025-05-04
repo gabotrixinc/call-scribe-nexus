@@ -10,7 +10,7 @@ export interface AuthGuardProps {
 }
 
 const AuthGuard: React.FC<AuthGuardProps> = ({ children, allowedRoles = [] }) => {
-  const { user, loading, userRole } = useAuth();
+  const { user, loading, userRole, hasRole } = useAuth();
 
   if (loading) {
     return (
@@ -23,8 +23,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children, allowedRoles = [] }) =>
   // If there are allowed roles specified and the user doesn't have one of them
   if (
     allowedRoles.length > 0 && 
-    userRole && 
-    !allowedRoles.includes(userRole)
+    !hasRole(allowedRoles)
   ) {
     return <Navigate to="/unauthorized" replace />;
   }

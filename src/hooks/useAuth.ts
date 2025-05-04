@@ -1,3 +1,3 @@
 
 // Re-export from auth directory
-export { useAuth } from './auth';
+export { useAuth, AuthProvider } from './auth';

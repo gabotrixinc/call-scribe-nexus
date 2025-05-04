@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +28,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string | null>('admin'); // Mock userRole
 
   // Keep the original auth code commented out for future use
   /*
@@ -136,6 +136,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     navigate('/', { replace: true });
   };
 
+  // Mock signUp function to match the one expected in RegisterPage
+  const signUp = async (email: string, password: string, userData: any): Promise<void> => {
+    toast({
+      title: "Registro exitoso (Modo Temporal)",
+      description: "Autenticación deshabilitada temporalmente",
+    });
+    
+    navigate('/', { replace: true });
+  };
+
   // Mock logout function
   const logout = async (): Promise<void> => {
     toast({
@@ -178,12 +188,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         error: authState.error,
         login,
         register,
+        signUp,
         logout,
         updateUserProfile,
         updateProfile,
         resetPassword,
         hasRole,
         isAuthenticated: true, // Always authenticated
+        userRole,
       }}
     >
       {children}
