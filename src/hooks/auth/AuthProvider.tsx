@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -20,10 +21,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const [authState, setAuthState] = useState<AuthState>({
-    // Bypass authentication by setting a mock user
     user: mockUser,
     session: { user: { id: mockUser.id } } as any,
     isLoading: false,
+    error: null
   });
   
   const { toast } = useToast();
@@ -116,29 +117,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   */
 
   // Mock login function that always succeeds
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<void> => {
     toast({
       title: "Inicio de sesión exitoso (Modo Temporal)",
       description: "Autenticación deshabilitada temporalmente",
     });
     
     navigate('/', { replace: true });
-    return { error: null };
   };
 
   // Mock register function
-  const register = async (email: string, password: string, firstName: string, lastName: string) => {
+  const register = async (email: string, password: string, firstName?: string, lastName?: string): Promise<void> => {
     toast({
       title: "Registro exitoso (Modo Temporal)",
       description: "Autenticación deshabilitada temporalmente",
     });
     
     navigate('/', { replace: true });
-    return { error: null };
   };
 
   // Mock logout function
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
     toast({
       title: "Sesión cerrada (Modo Temporal)",
       description: "Autenticación deshabilitada temporalmente",
@@ -146,13 +145,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Mock profile update function
-  const updateUserProfile = async (data: Partial<User>) => {
+  const updateUserProfile = async (data: Partial<User>): Promise<void> => {
     toast({
       title: "Perfil actualizado (Modo Temporal)",
       description: "Autenticación deshabilitada temporalmente",
     });
-    
-    return { error: null };
+  };
+
+  // Alias for updateUserProfile to match the interface
+  const updateProfile = updateUserProfile;
+
+  // Mock resetPassword function
+  const resetPassword = async (email: string): Promise<void> => {
+    toast({
+      title: "Restablecimiento de contraseña enviado (Modo Temporal)",
+      description: "Autenticación deshabilitada temporalmente",
+    });
   };
 
   const hasRole = (requiredRoles: UserRole | UserRole[]): boolean => {
@@ -163,11 +171,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <AuthContext.Provider
       value={{
-        ...authState,
+        user: authState.user,
+        session: authState.session,
+        loading: authState.isLoading,
+        isLoading: authState.isLoading,
+        error: authState.error,
         login,
         register,
         logout,
         updateUserProfile,
+        updateProfile,
+        resetPassword,
         hasRole,
         isAuthenticated: true, // Always authenticated
       }}
