@@ -1,52 +1,67 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface AudioNotificationProps {
   audioSrc: string;
   play: boolean;
   loop?: boolean;
   volume?: number;
-  onEnded?: () => void;
 }
 
 const AudioNotification: React.FC<AudioNotificationProps> = ({ 
-  audioSrc,
-  play,
+  audioSrc, 
+  play, 
   loop = false, 
-  volume = 1,
-  onEnded 
+  volume = 0.5 
 }) => {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = Math.min(Math.max(volume, 0), 1);
-      audioRef.current.loop = loop;
-    }
-  }, [volume, loop]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (!audioRef.current) return;
+    // Crear elemento de audio
+    const audio = new Audio(audioSrc);
+    audioRef.current = audio;
+    audio.loop = loop;
+    audio.volume = volume;
+    
+    // Limpiar al desmontar
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
+    };
+  }, [audioSrc, loop, volume]);
+
+  useEffect(() => {
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
     
     if (play) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(err => 
-        console.error("Error playing audio notification:", err)
-      );
+      // Usar promesa para capturar errores de reproducción
+      const playPromise = audioElement.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log('Audio notification started playing');
+          })
+          .catch(error => {
+            console.warn('Audio autoplay prevented:', error);
+            // Posiblemente el navegador bloqueó la reproducción automática
+            // Informar al usuario que debe interactuar con la página primero
+          });
+      }
     } else {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+      // Detener el audio
+      audioElement.pause();
+      if (!loop) {
+        audioElement.currentTime = 0;
+      }
     }
-  }, [play]);
+  }, [play, loop]);
 
-  return (
-    <audio 
-      ref={audioRef}
-      src={audioSrc}
-      onEnded={onEnded}
-      style={{ display: 'none' }}
-    />
-  );
+  return null; // Este componente no renderiza nada visual
 };
 
 export default AudioNotification;

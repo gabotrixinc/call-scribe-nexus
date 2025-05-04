@@ -24,6 +24,7 @@ export const useCallMutations = () => {
           console.log('Modo de prueba activado para llamadas');
         }
         
+        // Invocar la función edge para realizar la llamada
         const { data: twilioData, error: twilioError } = await supabase.functions.invoke('make-call', {
           body: { 
             phoneNumber: callData.caller_number,
@@ -86,7 +87,7 @@ export const useCallMutations = () => {
           
           // Mejorar los mensajes de error específicos de Twilio
           if (error.message.includes('21215')) {
-            errorMessage = 'Error de Twilio: El número no está autorizado para llamadas internacionales. Debe habilitar permisos geográficos en su cuenta de Twilio: https://www.twilio.com/console/voice/calls/geo-permissions/low-risk';
+            errorMessage = 'Error de Twilio: El número no está autorizado para llamadas internacionales. Debe habilitar permisos geográficos en su cuenta de Twilio.';
           } else if (error.message.includes('20003')) {
             errorMessage = 'Error de Twilio: Autenticación fallida. Verifique las credenciales de Twilio.';
           } else if (error.message.includes('21606')) {
@@ -126,12 +127,35 @@ export const useCallMutations = () => {
   const endCall = useMutation({
     mutationFn: async (callId: string) => {
       try {
+        // Primero intentar finalizar la llamada en Twilio
+        try {
+          const { data: callData } = await supabase
+            .from('calls')
+            .select('twilio_call_sid')
+            .eq('id', callId)
+            .single();
+            
+          if (callData?.twilio_call_sid) {
+            // Intentar finalizar la llamada en Twilio
+            await supabase.functions.invoke('make-call', {
+              body: {
+                action: 'end-call',
+                callSid: callData.twilio_call_sid
+              }
+            });
+          }
+        } catch (twilioError) {
+          console.error('Error al finalizar llamada en Twilio (continuando):', twilioError);
+          // Continuamos aunque falle Twilio para actualizar el estado en BD
+        }
+        
+        // Actualizar el estado de la llamada en la base de datos
         const { data, error } = await supabase
           .from('calls')
           .update({
             status: 'completed',
             end_time: new Date().toISOString(),
-            duration: 300
+            duration: 300 // Duración estimada si no se puede calcular exactamente
           })
           .eq('id', callId)
           .select()
@@ -161,6 +185,26 @@ export const useCallMutations = () => {
   const abandonCall = useMutation({
     mutationFn: async (callId: string) => {
       try {
+        // Similar a endCall, primero intentamos finalizar en Twilio
+        try {
+          const { data: callData } = await supabase
+            .from('calls')
+            .select('twilio_call_sid')
+            .eq('id', callId)
+            .single();
+            
+          if (callData?.twilio_call_sid) {
+            await supabase.functions.invoke('make-call', {
+              body: {
+                action: 'end-call',
+                callSid: callData.twilio_call_sid
+              }
+            });
+          }
+        } catch (twilioError) {
+          console.error('Error al finalizar llamada abandonada en Twilio (continuando):', twilioError);
+        }
+        
         const { data, error } = await supabase
           .from('calls')
           .update({

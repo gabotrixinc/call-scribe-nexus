@@ -65,7 +65,7 @@ serve(async (req) => {
     const { data: availableAgents, error: agentsError } = await supabase
       .from('agents')
       .select('id, name')
-      .eq('status', 'available')
+      .eq('status', 'active')
       .eq('type', 'ai')
       .limit(1);
     
@@ -101,6 +101,28 @@ serve(async (req) => {
       console.log('Created call record:', callData);
     }
     
+    // Notify clients about new call via realtime
+    try {
+      const channel = supabase.channel('new-call-notification');
+      await channel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.send({
+            type: 'broadcast',
+            event: 'new-call',
+            payload: {
+              callId: callData?.id,
+              callSid: CallSid,
+              callerNumber: From,
+              timestamp: new Date().toISOString(),
+              agentId: assignedAgentId
+            },
+          });
+        }
+      });
+    } catch (broadcastError) {
+      console.error('Error broadcasting new call:', broadcastError);
+    }
+    
     // Generate TwiML response for Twilio
     const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -108,12 +130,13 @@ serve(async (req) => {
   <Pause length="1"/>
   ${assignedAgentId 
     ? `<Say language="es-ES">Conectando con un agente disponible...</Say>
-       <Dial timeout="30" record="record-from-answer">
+       <Dial timeout="30" record="record-from-answer" callerId="${To}">
          <Client>agent-${assignedAgentId}</Client>
        </Dial>`
     : `<Say language="es-ES">Todos nuestros agentes están ocupados. Por favor intente más tarde.</Say>`
   }
   <Say language="es-ES">Gracias por contactar con nuestro centro. Adiós.</Say>
+  <Hangup/>
 </Response>`;
     
     console.log('Generated TwiML response');
@@ -132,6 +155,7 @@ serve(async (req) => {
     const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say language="es-ES">Lo sentimos, ha ocurrido un error procesando su llamada. Por favor intente nuevamente.</Say>
+  <Hangup/>
 </Response>`;
     
     return new Response(errorTwiml, { 

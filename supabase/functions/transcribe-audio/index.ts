@@ -1,6 +1,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -36,32 +40,54 @@ serve(async (req) => {
       }
 
       const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
-      if (!geminiApiKey) {
-        throw new Error("Gemini API key is not configured");
+      
+      // Simulamos la transcripción para la demo
+      // En un caso real, utilizaríamos el API de transcripción como Whisper o Gemini
+      const transcriptionTexts = [
+        "Hola, estoy llamando para consultar sobre mi factura",
+        "Necesito ayuda con un pago que realicé",
+        "¿Podrían revisar mi cuenta por favor?",
+        "Tengo una duda sobre mi servicio",
+        "Quiero actualizar mi información personal"
+      ];
+      
+      const transcription = transcriptionTexts[Math.floor(Math.random() * transcriptionTexts.length)];
+
+      // Guardamos la transcripción en la base de datos
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY");
+      
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Supabase configuration missing");
       }
-
-      // Process audio with Google Speech-to-Text or other service
-      const transcription = "Transcripción simulada para demostración";
-
-      // Store transcription in database
-      const { data, error } = await fetch(
-        `${Deno.env.get("SUPABASE_URL")}/rest/v1/call_transcriptions`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": Deno.env.get("SUPABASE_ANON_KEY") || "",
-            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          },
-          body: JSON.stringify({
-            call_id: callId,
-            text: transcription,
-            timestamp: new Date().toISOString(),
-          }),
+      
+      // Intentamos insertar la transcripción en la base de datos
+      try {
+        const response = await fetch(
+          `${supabaseUrl}/rest/v1/call_transcriptions`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({
+              call_id: callId,
+              text: transcription,
+              timestamp: new Date().toISOString(),
+              source: 'human'
+            }),
+          }
+        );
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Error storing transcription:", errorData);
         }
-      ).then((res) => res.json());
-
-      if (error) throw error;
+      } catch (dbError) {
+        console.error("Database error while storing transcription:", dbError);
+      }
 
       return new Response(
         JSON.stringify({
@@ -83,6 +109,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    console.error("Error processing request:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 

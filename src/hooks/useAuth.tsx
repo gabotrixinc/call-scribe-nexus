@@ -1,5 +1,3 @@
 
-// This file should be a .tsx file since it's importing JSX code
-import { useAuth } from './auth';
-
-export { useAuth };
+// Re-exportar el hook de autenticación desde el directorio auth
+export { useAuth } from './auth/useAuth';
