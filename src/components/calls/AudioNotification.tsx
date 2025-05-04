@@ -17,7 +17,7 @@ const AudioNotification: React.FC<AudioNotificationProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Create audio element
+    // Create audio element if it doesn't exist yet
     if (!audioRef.current) {
       const audio = new Audio();
       audio.src = audioSrc;

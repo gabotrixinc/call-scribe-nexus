@@ -16,6 +16,7 @@ export const useAudio = () => {
   
   // Check if audio is supported on mount
   useEffect(() => {
+    // Check audio support without initializing AudioContext
     const isSupported = 
       typeof window !== 'undefined' && 
       navigator.mediaDevices && 
@@ -32,26 +33,9 @@ export const useAudio = () => {
     const audioEl = new Audio();
     audioOutputRef.current = audioEl;
     
-    // Initialize AudioContext - using a function to ensure it's lazily evaluated
-    const getAudioContext = () => {
-      if (!audioContextRef.current && typeof window !== 'undefined') {
-        try {
-          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-          if (AudioContextClass) {
-            audioContextRef.current = new AudioContextClass();
-          }
-        } catch (err) {
-          console.error('Failed to initialize AudioContext:', err);
-          setError('Error al inicializar el contexto de audio.');
-        }
-      }
-      return audioContextRef.current;
-    };
-    
-    // Only access the audio context when needed, not during initialization
-    
     return () => {
       stopMicrophone();
+      
       // Cleanup AudioContext if it was created
       if (audioContextRef.current) {
         try {
@@ -82,10 +66,12 @@ export const useAudio = () => {
       // Lazily initialize AudioContext only when needed
       if (!audioContextRef.current) {
         try {
+          // Use the correct way to initialize AudioContext with new operator
           const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
           if (!AudioContextClass) {
             throw new Error('AudioContext not supported');
           }
+          // Create a new instance explicitly with the new operator
           audioContextRef.current = new AudioContextClass();
         } catch (err) {
           console.error('Failed to initialize AudioContext:', err);
