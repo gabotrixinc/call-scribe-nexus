@@ -15,7 +15,7 @@ import IntegrationsPage from './pages/IntegrationsPage';
 import MessagingPage from './pages/MessagingPage';
 import ReportsPage from './pages/ReportsPage';
 import FeedbackPage from './pages/FeedbackPage';
-import { AuthProvider } from './hooks/auth';
+import { AuthProvider } from './hooks/auth/AuthProvider';
 
 const App = () => {
   return (

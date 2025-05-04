@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/auth/useAuth';
 import { UserRole } from '@/types/auth';
 
 export interface AuthGuardProps {
@@ -10,7 +10,7 @@ export interface AuthGuardProps {
 }
 
 const AuthGuard: React.FC<AuthGuardProps> = ({ children, allowedRoles = [] }) => {
-  const { user, loading, userRole, hasRole } = useAuth();
+  const { user, loading, hasRole } = useAuth();
 
   if (loading) {
     return (
