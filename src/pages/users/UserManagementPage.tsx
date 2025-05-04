@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UserWithRole, UserRole } from '@/types/auth';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/auth'; // Updated import path
 import { Badge } from '@/components/ui/badge';
 import { 
   Search, 
