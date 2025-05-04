@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface AudioNotificationProps {
   audioSrc: string;
@@ -15,28 +15,21 @@ const AudioNotification: React.FC<AudioNotificationProps> = ({
   volume = 0.5 
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Create or update audio element when props change
+  // Initialize audio element safely
   useEffect(() => {
-    // Safely create audio element if it doesn't exist yet
     if (!audioRef.current) {
       try {
+        // Create audio element only once
         const audio = new Audio();
-        audio.src = audioSrc;
+        audio.preload = "auto"; // Preload the audio
         audio.loop = loop;
         audio.volume = volume;
         audioRef.current = audio;
+        setIsInitialized(true);
       } catch (error) {
         console.error('Error creating audio element:', error);
-      }
-    } else {
-      // Update existing audio element
-      try {
-        audioRef.current.src = audioSrc;
-        audioRef.current.loop = loop;
-        audioRef.current.volume = volume;
-      } catch (error) {
-        console.error('Error updating audio element:', error);
       }
     }
     
@@ -45,26 +38,51 @@ const AudioNotification: React.FC<AudioNotificationProps> = ({
       if (audioRef.current) {
         try {
           audioRef.current.pause();
-          audioRef.current.src = '';
           audioRef.current = null;
         } catch (error) {
           console.error('Error cleaning up audio element:', error);
         }
       }
     };
-  }, [audioSrc, loop, volume]);
+  }, []);
+  
+  // Update audio properties when props change
+  useEffect(() => {
+    const audioElement = audioRef.current;
+    if (!audioElement || !isInitialized) return;
+    
+    try {
+      audioElement.src = audioSrc;
+      audioElement.loop = loop;
+      audioElement.volume = volume;
+    } catch (error) {
+      console.error('Error updating audio element:', error);
+    }
+  }, [audioSrc, loop, volume, isInitialized]);
 
   // Handle play/pause based on play prop
   useEffect(() => {
     const audioElement = audioRef.current;
-    if (!audioElement) return;
+    if (!audioElement || !isInitialized) return;
     
     const handlePlay = async () => {
       try {
         if (play) {
+          // First ensure we have the latest src
+          if (audioElement.src !== audioSrc && audioSrc) {
+            audioElement.src = audioSrc;
+          }
+          
           // Use promise to catch playback errors
-          await audioElement.play();
-          console.log('Audio notification started playing');
+          const playPromise = audioElement.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.warn('Audio playback prevented:', error);
+              // Most likely autoplay was prevented by browser policy
+              // We'll leave it to the user to interact with the page first
+            });
+          }
         } else {
           // Stop the audio
           audioElement.pause();
@@ -73,13 +91,12 @@ const AudioNotification: React.FC<AudioNotificationProps> = ({
           }
         }
       } catch (error) {
-        console.warn('Audio playback error:', error);
-        // Most likely autoplay was prevented by browser
+        console.warn('Audio control error:', error);
       }
     };
     
     handlePlay();
-  }, [play, loop]);
+  }, [play, audioSrc, loop, isInitialized]);
 
   return null; // This component doesn't render anything visual
 };

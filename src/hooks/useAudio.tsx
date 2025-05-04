@@ -1,37 +1,46 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 export const useAudio = () => {
-  const [isAudioSupported, setIsAudioSupported] = useState(true);
+  const [isAudioSupported, setIsAudioSupported] = useState<boolean | null>(null);
   const [isMicrophoneEnabled, setIsMicrophoneEnabled] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   
+  // Using refs to avoid AudioContext initialization during rendering
   const audioInputRef = useRef<MediaStream | null>(null);
   const audioOutputRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   
-  // Check if audio is supported on mount
+  // Check audio support on mount
   useEffect(() => {
     // Check audio support without initializing AudioContext
-    const isSupported = 
-      typeof window !== 'undefined' && 
-      navigator.mediaDevices && 
-      navigator.mediaDevices.getUserMedia && 
-      (window.AudioContext || (window as any).webkitAudioContext);
+    const checkAudioSupport = () => {
+      const isSupported = 
+        typeof window !== 'undefined' && 
+        window.navigator.mediaDevices && 
+        window.navigator.mediaDevices.getUserMedia && 
+        (window.AudioContext || (window as any).webkitAudioContext);
+      
+      setIsAudioSupported(!!isSupported);
+      
+      if (!isSupported) {
+        setError('Tu navegador no soporta el acceso a audio. Por favor, intenta con un navegador más moderno.');
+      }
+    };
     
-    setIsAudioSupported(isSupported);
-    
-    if (!isSupported) {
-      setError('Tu navegador no soporta el acceso a audio. Por favor, intenta con un navegador más moderno.');
-    }
+    checkAudioSupport();
     
     // Initialize audio output element for later use
-    const audioEl = new Audio();
-    audioOutputRef.current = audioEl;
+    try {
+      const audioEl = new Audio();
+      audioOutputRef.current = audioEl;
+    } catch (err) {
+      console.error('Error creating Audio element:', err);
+    }
     
     return () => {
       stopMicrophone();
@@ -48,18 +57,22 @@ export const useAudio = () => {
     };
   }, []);
   
-  // Safe initialization of AudioContext - Fixed to use 'new' operator correctly
-  const initializeAudioContext = (): AudioContext | null => {
+  // Safe initialization of AudioContext using useCallback to prevent recreation on each render
+  const initializeAudioContext = useCallback((): AudioContext | null => {
+    // Return existing context if already initialized
     if (audioContextRef.current) return audioContextRef.current;
     
     try {
+      // Make sure we're in a browser environment
+      if (typeof window === 'undefined') return null;
+      
       // Get the correct constructor
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) {
         throw new Error('AudioContext not supported');
       }
       
-      // Explicitly use new operator with proper constructor
+      // Create a new AudioContext instance with the new operator
       const context = new AudioContextClass();
       audioContextRef.current = context;
       return context;
@@ -68,7 +81,7 @@ export const useAudio = () => {
       setError('Error al inicializar el contexto de audio');
       return null;
     }
-  };
+  }, []);
   
   // Enable microphone input
   const enableMicrophone = async () => {
