@@ -16,56 +16,69 @@ const AudioNotification: React.FC<AudioNotificationProps> = ({
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Create or update audio element when props change
   useEffect(() => {
-    // Create audio element if it doesn't exist yet
+    // Safely create audio element if it doesn't exist yet
     if (!audioRef.current) {
-      const audio = new Audio();
-      audio.src = audioSrc;
-      audio.loop = loop;
-      audio.volume = volume;
-      audioRef.current = audio;
+      try {
+        const audio = new Audio();
+        audio.src = audioSrc;
+        audio.loop = loop;
+        audio.volume = volume;
+        audioRef.current = audio;
+      } catch (error) {
+        console.error('Error creating audio element:', error);
+      }
     } else {
       // Update existing audio element
-      audioRef.current.src = audioSrc;
-      audioRef.current.loop = loop;
-      audioRef.current.volume = volume;
+      try {
+        audioRef.current.src = audioSrc;
+        audioRef.current.loop = loop;
+        audioRef.current.volume = volume;
+      } catch (error) {
+        console.error('Error updating audio element:', error);
+      }
     }
     
     // Clean up on unmount
     return () => {
       if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
-        audioRef.current = null;
+        try {
+          audioRef.current.pause();
+          audioRef.current.src = '';
+          audioRef.current = null;
+        } catch (error) {
+          console.error('Error cleaning up audio element:', error);
+        }
       }
     };
   }, [audioSrc, loop, volume]);
 
+  // Handle play/pause based on play prop
   useEffect(() => {
     const audioElement = audioRef.current;
     if (!audioElement) return;
     
-    if (play) {
-      // Use promise to catch playback errors
-      const playPromise = audioElement.play();
-      
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            console.log('Audio notification started playing');
-          })
-          .catch(error => {
-            console.warn('Audio autoplay prevented:', error);
-            // Browser might have blocked autoplay
-          });
+    const handlePlay = async () => {
+      try {
+        if (play) {
+          // Use promise to catch playback errors
+          await audioElement.play();
+          console.log('Audio notification started playing');
+        } else {
+          // Stop the audio
+          audioElement.pause();
+          if (!loop) {
+            audioElement.currentTime = 0;
+          }
+        }
+      } catch (error) {
+        console.warn('Audio playback error:', error);
+        // Most likely autoplay was prevented by browser
       }
-    } else {
-      // Stop the audio
-      audioElement.pause();
-      if (!loop) {
-        audioElement.currentTime = 0;
-      }
-    }
+    };
+    
+    handlePlay();
   }, [play, loop]);
 
   return null; // This component doesn't render anything visual

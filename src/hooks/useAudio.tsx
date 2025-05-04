@@ -48,6 +48,28 @@ export const useAudio = () => {
     };
   }, []);
   
+  // Safe initialization of AudioContext
+  const initializeAudioContext = (): AudioContext | null => {
+    if (audioContextRef.current) return audioContextRef.current;
+    
+    try {
+      // Correctly use the AudioContext constructor with new operator
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) {
+        throw new Error('AudioContext not supported');
+      }
+      
+      // Explicitly use new operator with proper type safety
+      const context = new AudioContextClass();
+      audioContextRef.current = context;
+      return context;
+    } catch (err) {
+      console.error('Failed to initialize AudioContext:', err);
+      setError('Error al inicializar el contexto de audio');
+      return null;
+    }
+  };
+  
   // Enable microphone input
   const enableMicrophone = async () => {
     if (!isAudioSupported) {
@@ -63,20 +85,10 @@ export const useAudio = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioInputRef.current = stream;
       
-      // Lazily initialize AudioContext only when needed
-      if (!audioContextRef.current) {
-        try {
-          // Use the correct way to initialize AudioContext with new operator
-          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-          if (!AudioContextClass) {
-            throw new Error('AudioContext not supported');
-          }
-          // Create a new instance explicitly with the new operator
-          audioContextRef.current = new AudioContextClass();
-        } catch (err) {
-          console.error('Failed to initialize AudioContext:', err);
-          throw new Error('Error al inicializar el contexto de audio');
-        }
+      // Safely initialize AudioContext
+      const context = initializeAudioContext();
+      if (!context) {
+        throw new Error('No se pudo inicializar el contexto de audio');
       }
       
       setIsMicrophoneEnabled(true);
