@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { AuthContext } from './AuthContext';
 import { AuthState } from './types';
-import { User, UserRole } from '@/types/auth';
 import { getInitialAuthState, useMockAuth } from './mockAuthUtils';
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -36,7 +35,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         updateProfile,
         resetPassword,
         hasRole,
-        isAuthenticated: true, // Always authenticated
+        isAuthenticated: Boolean(authState.user), // Derive from user state
         userRole,
       }}
     >

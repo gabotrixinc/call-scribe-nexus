@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/auth';
+import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 
 export interface AuthGuardProps {
@@ -20,14 +20,6 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children, allowedRoles = [] }) =>
     );
   }
 
-  // If there are allowed roles specified and the user doesn't have one of them
-  if (
-    allowedRoles.length > 0 && 
-    !hasRole(allowedRoles)
-  ) {
-    return <Navigate to="/unauthorized" replace />;
-  }
-
   // For public routes, allow access even if not logged in
   if (allowedRoles.length === 0) {
     return <>{children}</>;
@@ -36,6 +28,11 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children, allowedRoles = [] }) =>
   // For protected routes, redirect to login if not logged in
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // If there are allowed roles specified and the user doesn't have one of them
+  if (allowedRoles.length > 0 && !hasRole(allowedRoles)) {
+    return <Navigate to="/unauthorized" replace />;
   }
 
   // User is logged in and has required role (or no specific role required)

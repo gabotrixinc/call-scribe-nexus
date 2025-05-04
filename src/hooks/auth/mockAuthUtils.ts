@@ -85,7 +85,10 @@ export const useMockAuth = () => {
   };
 
   // Mock hasRole function
-  const hasRole = () => true;
+  const hasRole = (roles: string | string[]): boolean => {
+    // Always return true in mock mode
+    return true;
+  };
 
   return {
     login,
