@@ -55,6 +55,7 @@ export const useAudio = () => {
       // Create AudioContext if not already created
       if (!audioContextRef.current) {
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        // Make sure we're using the new operator correctly to construct AudioContext
         audioContextRef.current = new AudioContextClass();
       }
       
