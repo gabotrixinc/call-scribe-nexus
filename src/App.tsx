@@ -19,8 +19,8 @@ import { AuthProvider } from './hooks/auth/AuthProvider';
 
 const App = () => {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
@@ -43,8 +43,8 @@ const App = () => {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
         <Toaster />
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 };
 
