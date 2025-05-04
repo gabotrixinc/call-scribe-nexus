@@ -17,13 +17,13 @@ const AudioNotification: React.FC<AudioNotificationProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Crear elemento de audio
+    // Create audio element
     const audio = new Audio(audioSrc);
     audioRef.current = audio;
     audio.loop = loop;
     audio.volume = volume;
     
-    // Limpiar al desmontar
+    // Clean up on unmount
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -38,7 +38,7 @@ const AudioNotification: React.FC<AudioNotificationProps> = ({
     if (!audioElement) return;
     
     if (play) {
-      // Usar promesa para capturar errores de reproducción
+      // Use promise to catch playback errors
       const playPromise = audioElement.play();
       
       if (playPromise !== undefined) {
@@ -48,12 +48,12 @@ const AudioNotification: React.FC<AudioNotificationProps> = ({
           })
           .catch(error => {
             console.warn('Audio autoplay prevented:', error);
-            // Posiblemente el navegador bloqueó la reproducción automática
-            // Informar al usuario que debe interactuar con la página primero
+            // Browser might have blocked autoplay
+            // Inform the user they need to interact with the page first
           });
       }
     } else {
-      // Detener el audio
+      // Stop the audio
       audioElement.pause();
       if (!loop) {
         audioElement.currentTime = 0;
@@ -61,7 +61,7 @@ const AudioNotification: React.FC<AudioNotificationProps> = ({
     }
   }, [play, loop]);
 
-  return null; // Este componente no renderiza nada visual
+  return null; // This component doesn't render anything visual
 };
 
 export default AudioNotification;

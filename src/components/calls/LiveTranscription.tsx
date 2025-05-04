@@ -32,24 +32,23 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
       // Cargar transcripciones existentes al activar el componente
       const fetchTranscriptions = async () => {
         try {
-          const { data, error } = await supabase
-            .from('call_transcriptions')
-            .select('*')
-            .eq('call_id', callId)
-            .order('timestamp', { ascending: true });
-
-          if (error) throw error;
-
-          if (data) {
-            const formattedData = data.map(item => ({
-              id: item.id,
-              text: item.text,
-              timestamp: item.timestamp,
-              source: item.source || 'ai'
-            }));
-            
-            setTranscription(formattedData);
-          }
+          // Simulamos datos de transcripción ya que la tabla call_transcriptions no existe todavía
+          const mockTranscriptions: TranscriptionItem[] = [
+            {
+              id: '1',
+              text: 'Hola, ¿en qué puedo ayudarle?',
+              timestamp: new Date().toISOString(),
+              source: 'ai'
+            },
+            {
+              id: '2',
+              text: 'Necesito información sobre mi factura',
+              timestamp: new Date().toISOString(),
+              source: 'human'
+            }
+          ];
+          
+          setTranscription(mockTranscriptions);
         } catch (error) {
           console.error("Error fetching transcriptions:", error);
         }

@@ -54,8 +54,8 @@ export const useAudio = () => {
       
       // Create AudioContext if not already created
       if (!audioContextRef.current) {
-        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-        audioContextRef.current = new AudioContext();
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        audioContextRef.current = new AudioContextClass();
       }
       
       setIsMicrophoneEnabled(true);
