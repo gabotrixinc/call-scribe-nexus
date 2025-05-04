@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, Bell, User, Settings } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
-import { useAuth } from "@/hooks/auth/useAuth";
+import { useAuth } from "@/hooks/auth";
 
 interface HeaderProps {
   toggleSidebar: () => void;
