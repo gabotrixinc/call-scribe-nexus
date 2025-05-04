@@ -32,8 +32,35 @@ export const useAudio = () => {
     const audioEl = new Audio();
     audioOutputRef.current = audioEl;
     
+    // Initialize AudioContext - using a function to ensure it's lazily evaluated
+    const getAudioContext = () => {
+      if (!audioContextRef.current && typeof window !== 'undefined') {
+        try {
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContextClass) {
+            audioContextRef.current = new AudioContextClass();
+          }
+        } catch (err) {
+          console.error('Failed to initialize AudioContext:', err);
+          setError('Error al inicializar el contexto de audio.');
+        }
+      }
+      return audioContextRef.current;
+    };
+    
+    // Only access the audio context when needed, not during initialization
+    
     return () => {
       stopMicrophone();
+      // Cleanup AudioContext if it was created
+      if (audioContextRef.current) {
+        try {
+          audioContextRef.current.close();
+          audioContextRef.current = null;
+        } catch (err) {
+          console.error('Error closing AudioContext:', err);
+        }
+      }
     };
   }, []);
   
@@ -52,11 +79,18 @@ export const useAudio = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioInputRef.current = stream;
       
-      // Create AudioContext if not already created
+      // Lazily initialize AudioContext only when needed
       if (!audioContextRef.current) {
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        // Make sure we're using the new operator correctly to construct AudioContext
-        audioContextRef.current = new AudioContextClass();
+        try {
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          if (!AudioContextClass) {
+            throw new Error('AudioContext not supported');
+          }
+          audioContextRef.current = new AudioContextClass();
+        } catch (err) {
+          console.error('Failed to initialize AudioContext:', err);
+          throw new Error('Error al inicializar el contexto de audio');
+        }
       }
       
       setIsMicrophoneEnabled(true);

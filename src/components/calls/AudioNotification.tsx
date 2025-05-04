@@ -18,10 +18,18 @@ const AudioNotification: React.FC<AudioNotificationProps> = ({
 
   useEffect(() => {
     // Create audio element
-    const audio = new Audio(audioSrc);
-    audioRef.current = audio;
-    audio.loop = loop;
-    audio.volume = volume;
+    if (!audioRef.current) {
+      const audio = new Audio();
+      audio.src = audioSrc;
+      audio.loop = loop;
+      audio.volume = volume;
+      audioRef.current = audio;
+    } else {
+      // Update existing audio element
+      audioRef.current.src = audioSrc;
+      audioRef.current.loop = loop;
+      audioRef.current.volume = volume;
+    }
     
     // Clean up on unmount
     return () => {
@@ -49,7 +57,6 @@ const AudioNotification: React.FC<AudioNotificationProps> = ({
           .catch(error => {
             console.warn('Audio autoplay prevented:', error);
             // Browser might have blocked autoplay
-            // Inform the user they need to interact with the page first
           });
       }
     } else {
