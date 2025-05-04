@@ -48,18 +48,18 @@ export const useAudio = () => {
     };
   }, []);
   
-  // Safe initialization of AudioContext
+  // Safe initialization of AudioContext - Fixed to use 'new' operator correctly
   const initializeAudioContext = (): AudioContext | null => {
     if (audioContextRef.current) return audioContextRef.current;
     
     try {
-      // Correctly use the AudioContext constructor with new operator
+      // Get the correct constructor
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) {
         throw new Error('AudioContext not supported');
       }
       
-      // Explicitly use new operator with proper type safety
+      // Explicitly use new operator with proper constructor
       const context = new AudioContextClass();
       audioContextRef.current = context;
       return context;
