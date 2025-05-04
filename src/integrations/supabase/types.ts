@@ -147,6 +147,36 @@ export type Database = {
           },
         ]
       }
+      contacts: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          last_contact: string | null
+          name: string
+          phone: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_contact?: string | null
+          name: string
+          phone: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_contact?: string | null
+          name?: string
+          phone?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

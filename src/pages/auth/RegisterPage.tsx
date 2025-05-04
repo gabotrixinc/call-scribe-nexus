@@ -1,193 +1,189 @@
 
 import React, { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useForm } from 'react-hook-form';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Link, Navigate } from 'react-router-dom';
-import { Eye, EyeOff, UserPlus } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { ModeToggle } from '@/components/mode-toggle';
+
+interface RegisterFormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
 
 const RegisterPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
-  
-  const { register, isAuthenticated } = useAuth();
+  const { signUp, loading } = useAuth();
+  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm<RegisterFormData>();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate passwords match
-    if (password !== confirmPassword) {
-      setPasswordError('Las contraseñas no coinciden');
-      return;
-    }
-    
-    // Validate password strength
-    if (password.length < 8) {
-      setPasswordError('La contraseña debe tener al menos 8 caracteres');
-      return;
-    }
-    
-    setPasswordError('');
-    setIsSubmitting(true);
-    
-    const { error } = await register(email, password, firstName, lastName);
-    
-    setIsSubmitting(false);
-    if (!error) {
-      setEmail('');
-      setPassword('');
-      setConfirmPassword('');
-      setFirstName('');
-      setLastName('');
+  const onSubmit = async (data: RegisterFormData) => {
+    setError(null);
+    try {
+      await signUp(data.email, data.password, {
+        first_name: data.firstName,
+        last_name: data.lastName,
+      });
+      navigate('/login', { state: { registered: true } });
+    } catch (err: any) {
+      setError(err.message || 'Error al crear la cuenta');
     }
   };
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to="/" />;
-  }
-
   return (
-    <div className="auth-container bg-background">
-      <div className="auth-card">
-        <div className="flex justify-center mb-6">
-          <img 
-            src="/lovable-uploads/786b72bc-7591-4068-bde8-62021e00bc80.png" 
-            alt="Gabotrix CX Logo" 
-            className="h-16 w-auto" 
-          />
-        </div>
-        
-        <h1 className="auth-heading">Crear cuenta</h1>
-        
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">Nombre</Label>
-              <Input
-                id="firstName"
-                type="text"
-                placeholder="Juan"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-                className="glass-card border-white/20"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Apellido</Label>
-              <Input
-                id="lastName"
-                type="text"
-                placeholder="Pérez"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                required
-                className="glass-card border-white/20"
-              />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="absolute top-4 right-4">
+        <ModeToggle />
+      </div>
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1 text-center">
+          <div className="w-full flex justify-center mb-4">
+            <div className="bg-primary/20 text-primary p-3 rounded-full">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-6 h-6"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
+                />
+              </svg>
             </div>
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="email">Correo electrónico</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="correo@ejemplo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="glass-card border-white/20"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="password">Contraseña</Label>
-            <div className="relative">
+          <CardTitle className="text-2xl font-bold">Crear cuenta</CardTitle>
+          <CardDescription>
+            Completa el formulario para registrarte
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">Nombre</Label>
+                <Input
+                  id="firstName"
+                  placeholder="Juan"
+                  {...register('firstName', {
+                    required: 'El nombre es obligatorio',
+                  })}
+                />
+                {errors.firstName && (
+                  <p className="text-sm text-red-500">{errors.firstName.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Apellido</Label>
+                <Input
+                  id="lastName"
+                  placeholder="Pérez"
+                  {...register('lastName', {
+                    required: 'El apellido es obligatorio',
+                  })}
+                />
+                {errors.lastName && (
+                  <p className="text-sm text-red-500">{errors.lastName.message}</p>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo electrónico</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="tu@email.com"
+                {...register('email', {
+                  required: 'El correo electrónico es obligatorio',
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: 'Dirección de correo inválida',
+                  },
+                })}
+              />
+              {errors.email && (
+                <p className="text-sm text-red-500">{errors.email.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
               <Input
                 id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className={`glass-card border-white/20 pr-10 ${passwordError ? 'border-red-500' : ''}`}
+                type="password"
+                placeholder="********"
+                {...register('password', {
+                  required: 'La contraseña es obligatoria',
+                  minLength: {
+                    value: 6,
+                    message: 'La contraseña debe tener al menos 6 caracteres',
+                  },
+                })}
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-0 top-0 h-full px-3 text-muted-foreground"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </Button>
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password.message}</p>
+              )}
             </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
-            <div className="relative">
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
               <Input
                 id="confirmPassword"
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                className={`glass-card border-white/20 pr-10 ${passwordError ? 'border-red-500' : ''}`}
+                type="password"
+                placeholder="********"
+                {...register('confirmPassword', {
+                  required: 'Confirma tu contraseña',
+                  validate: (value) =>
+                    value === watch('password') || 'Las contraseñas no coinciden',
+                })}
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-0 top-0 h-full px-3 text-muted-foreground"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </Button>
+              {errors.confirmPassword && (
+                <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>
+              )}
             </div>
-            {passwordError && (
-              <p className="text-sm text-red-500 mt-1">{passwordError}</p>
-            )}
-          </div>
-          
-          <Button 
-            type="submit" 
-            className="w-full mt-6 bg-primary hover:bg-primary/80 transition-all duration-300"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <div className="flex items-center space-x-2">
-                <div className="wave"></div>
-                <div className="wave"></div>
-                <div className="wave"></div>
-              </div>
-            ) : (
-              <>
-                <UserPlus className="mr-2 h-4 w-4" /> Registrarse
-              </>
-            )}
-          </Button>
-        </form>
-        
-        <div className="auth-switch">
-          <p>
-            ¿Ya tienes una cuenta?{" "}
+
+            {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Registrando...
+                </>
+              ) : (
+                'Registrarse'
+              )}
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter className="flex flex-col space-y-4">
+          <div className="text-sm text-center text-muted-foreground">
+            ¿Ya tienes una cuenta?{' '}
             <Link to="/login" className="text-primary hover:underline">
-              Iniciar sesión
+              Inicia sesión
             </Link>
-          </p>
-        </div>
-      </div>
+          </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

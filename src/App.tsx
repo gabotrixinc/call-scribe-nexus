@@ -1,51 +1,51 @@
 
-import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
-import Dashboard from '@/pages/Dashboard';
-import CallsPage from '@/pages/CallsPage';
-import ConversationsPage from '@/pages/ConversationsPage';
-import AgentsPage from '@/pages/AgentsPage';
-import LoginPage from '@/pages/auth/LoginPage';
-import RegisterPage from '@/pages/auth/RegisterPage';
-import NotFound from '@/pages/NotFound';
-import UnauthorizedPage from '@/pages/auth/UnauthorizedPage';
-import SettingsPage from '@/pages/SettingsPage';
-import { AuthProvider } from '@/hooks/auth/AuthProvider';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
-import AuthGuard from '@/components/auth/AuthGuard';
-import './App.css';
-import Index from '@/pages/Index';
-import MessagingPage from '@/pages/MessagingPage';
-import AutomationPage from '@/pages/AutomationPage';
-import UserManagementPage from '@/pages/users/UserManagementPage';
-import ContactsPage from '@/pages/ContactsPage';
+import Dashboard from './pages/Dashboard';
+import CallsPage from './pages/CallsPage';
+import ContactsPage from './pages/ContactsPage';
+import LoginPage from './pages/auth/LoginPage';
+import RegisterPage from './pages/auth/RegisterPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import UnauthorizedPage from './pages/auth/UnauthorizedPage';
+import NotFoundPage from './pages/NotFoundPage';
+import AgentsPage from './pages/AgentsPage';
+import SettingsPage from './pages/SettingsPage';
+import IntegrationsPage from './pages/IntegrationsPage';
+import MessagingPage from './pages/MessagingPage';
+import ReportsPage from './pages/ReportsPage';
+import FeedbackPage from './pages/FeedbackPage';
+import { AuthProvider } from './hooks/useAuth';
 
-function App() {
+const App = () => {
   return (
-    <BrowserRouter>
-      <AuthProvider>
+    <AuthProvider>
+      <Router>
         <Routes>
-          <Route path="/" element={<Index />} />
+          {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
-          
-          <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
-          <Route path="/calls" element={<AuthGuard><CallsPage /></AuthGuard>} />
-          <Route path="/conversations" element={<AuthGuard><ConversationsPage /></AuthGuard>} />
-          <Route path="/contacts" element={<AuthGuard><ContactsPage /></AuthGuard>} />
-          <Route path="/messaging" element={<AuthGuard><MessagingPage /></AuthGuard>} />
-          <Route path="/agents" element={<AuthGuard><AgentsPage /></AuthGuard>} />
-          <Route path="/automation" element={<AuthGuard><AutomationPage /></AuthGuard>} />
-          <Route path="/settings" element={<AuthGuard><SettingsPage /></AuthGuard>} />
-          <Route path="/users" element={<AuthGuard requiredRole="admin"><UserManagementPage /></AuthGuard>} />
-          
-          <Route path="/404" element={<NotFound />} />
-          <Route path="*" element={<Navigate to="/404" replace />} />
+
+          {/* Protected routes */}
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/calls" element={<CallsPage />} />
+          <Route path="/contacts" element={<ContactsPage />} />
+          <Route path="/messaging" element={<MessagingPage />} />
+          <Route path="/agents" element={<AgentsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/feedback" element={<FeedbackPage />} />
+          <Route path="/integrations" element={<IntegrationsPage />} />
+
+          {/* Catch-all */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
         <Toaster />
-      </AuthProvider>
-    </BrowserRouter>
+      </Router>
+    </AuthProvider>
   );
-}
+};
 
 export default App;

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useToast } from '@/hooks/use-toast';
@@ -12,14 +12,19 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, requiredRoles = [] }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const { toast } = useToast();
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
 
   return (
     <AuthGuard allowedRoles={requiredRoles}>
       <div className="min-h-screen flex flex-col md:flex-row">
-        <Sidebar />
+        <Sidebar isOpen={sidebarOpen} />
         <div className="flex-1 flex flex-col">
-          <Header />
+          <Header toggleSidebar={toggleSidebar} />
           <main className="flex-1 p-4 md:p-6 overflow-auto animate-fade-in">
             {children}
           </main>

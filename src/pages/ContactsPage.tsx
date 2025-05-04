@@ -30,19 +30,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Plus, PhoneCall, Pencil, Trash2, RefreshCw, Users } from "lucide-react";
-
-type Contact = {
-  id: string;
-  name: string;
-  phone: string;
-  email?: string;
-  company?: string;
-  last_contact?: string;
-  created_at: string;
-};
+import { Contact } from '@/types/contacts';
 
 const ContactsPage: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -69,15 +60,10 @@ const ContactsPage: React.FC = () => {
       
       if (error) throw error;
       
-      // Simulamos datos si la tabla no existe todavía
-      if (!data) {
-        data = sampleContacts;
-      }
-      
-      setContacts(data as Contact[]);
-    } catch (error) {
+      setContacts(data as Contact[] || []);
+    } catch (error: any) {
       console.error('Error fetching contacts:', error);
-      // Usar datos de muestra si hay un error
+      // Use sample data if there's an error
       setContacts(sampleContacts);
       toast({
         title: 'Error',
@@ -144,13 +130,13 @@ const ContactsPage: React.FC = () => {
       fetchContacts();
       resetForm();
       setOpenDialog(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving contact:', error);
       
       // Update local state for demo purposes
       if (isEditing) {
         setContacts(contacts.map(c => 
-          c.id === currentContact?.id ? { ...c, ...formData } : c
+          c.id === currentContact?.id ? { ...c, ...formData } as Contact : c
         ));
       } else {
         const newContact = {
@@ -160,7 +146,7 @@ const ContactsPage: React.FC = () => {
           email: formData.email,
           company: formData.company,
           created_at: new Date().toISOString()
-        };
+        } as Contact;
         setContacts([newContact, ...contacts]);
       }
       
@@ -201,7 +187,7 @@ const ContactsPage: React.FC = () => {
         title: 'Contacto eliminado',
         description: 'El contacto ha sido eliminado correctamente.'
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting contact:', error);
       
       // Update local state for demo
@@ -458,7 +444,7 @@ const ContactsPage: React.FC = () => {
   );
 };
 
-// Datos de contactos de muestra para modo offline/demo
+// Sample contacts data for offline/demo mode
 const sampleContacts: Contact[] = [
   {
     id: '1',
