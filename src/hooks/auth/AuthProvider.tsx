@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -7,114 +8,30 @@ import { fetchUserProfile, hasUserRole } from './authUtils';
 import { AuthState } from './types';
 import { User, UserRole } from '@/types/auth';
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  // Create a temporary mock user for bypass
-  const mockUser: User = {
-    id: 'temp-user-id',
-    email: 'temp@example.com',
-    firstName: 'Temporary',
-    lastName: 'User',
-    role: 'admin',
-    avatarUrl: null,
-    createdAt: new Date().toISOString()
-  };
+// Create a temporary mock user
+const createMockUser = (): User => ({
+  id: 'temp-user-id',
+  email: 'temp@example.com',
+  firstName: 'Temporary',
+  lastName: 'User',
+  role: 'admin',
+  avatarUrl: null,
+  createdAt: new Date().toISOString()
+});
 
-  const [authState, setAuthState] = useState<AuthState>({
-    user: mockUser,
-    session: { user: { id: mockUser.id } } as any,
-    isLoading: false,
-    error: null
-  });
-  
+// Initial auth state with mock user
+const getInitialAuthState = (): AuthState => ({
+  user: createMockUser(),
+  session: { user: { id: createMockUser().id } } as any,
+  isLoading: false,
+  error: null
+});
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [authState, setAuthState] = useState<AuthState>(getInitialAuthState());
   const { toast } = useToast();
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState<string | null>('admin'); // Mock userRole
-
-  // Keep the original auth code commented out for future use
-  /*
-  useEffect(() => {
-    // First set up the auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.id);
-        
-        // Update session immediately
-        setAuthState(state => ({
-          ...state,
-          session,
-        }));
-        
-        // Avoid supabase deadlock by using setTimeout
-        if (session?.user) {
-          setTimeout(async () => {
-            try {
-              const user = await fetchUserProfile(session.user.id);
-              console.log("Fetched user profile:", user);
-              setAuthState(state => ({
-                ...state,
-                user,
-                isLoading: false,
-              }));
-              
-              // Redirect to dashboard on successful login
-              if (event === 'SIGNED_IN' && window.location.pathname === '/login') {
-                navigate('/');
-              }
-            } catch (error) {
-              console.error("Error fetching user profile:", error);
-              setAuthState(state => ({
-                ...state,
-                isLoading: false,
-              }));
-            }
-          }, 0);
-        } else {
-          setAuthState(state => ({
-            ...state,
-            user: null,
-            isLoading: false,
-          }));
-        }
-      }
-    );
-
-    // Then check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.log("Initial session check:", session?.user?.id);
-      setAuthState(state => ({
-        ...state,
-        session,
-      }));
-      
-      if (session?.user) {
-        try {
-          const user = await fetchUserProfile(session.user.id);
-          console.log("Initial user profile:", user);
-          setAuthState(state => ({
-            ...state,
-            user,
-            isLoading: false,
-          }));
-        } catch (error) {
-          console.error("Error fetching initial user profile:", error);
-          setAuthState(state => ({
-            ...state,
-            isLoading: false,
-          }));
-        }
-      } else {
-        setAuthState(state => ({
-          ...state,
-          isLoading: false,
-        }));
-      }
-    });
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, [navigate]);
-  */
 
   // Mock login function that always succeeds
   const login = async (email: string, password: string): Promise<void> => {

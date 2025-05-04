@@ -2,7 +2,8 @@
 import { createContext } from 'react';
 import { AuthContextType } from './types';
 
-// Create a default context value to prevent "undefined context" errors
+// Create a default context value with all the needed properties
+// This ensures that the context is never undefined
 const defaultContextValue: AuthContextType = {
   user: null,
   session: null,

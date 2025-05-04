@@ -22,7 +22,6 @@ export interface AuthContextType {
   updateUserProfile: (data: Partial<User>) => Promise<void>;
   hasRole: (role: string | string[]) => boolean;
   isAuthenticated: boolean;
-  // Add missing properties needed by other components
   userRole: string | null;
   signUp: (email: string, password: string, userData: any) => Promise<void>;
 }
