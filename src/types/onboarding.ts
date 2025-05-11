@@ -15,8 +15,8 @@ export interface OnboardingProgress {
 export interface AgentConfig {
   name: string;
   type: 'ai' | 'human';
-  // Actualizamos los posibles valores de status para permitir más opciones
-  status: 'online' | 'offline' | 'available' | 'busy' | 'inactive';
+  // Valores correctos de status según el esquema de la tabla agents
+  status: 'online' | 'offline' | 'available' | 'busy';
   specialization?: string;
   voice_id?: string;
   prompt_template?: string;
