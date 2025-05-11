@@ -20,6 +20,11 @@ interface UseAudioReturn {
   element: HTMLAudioElement | null;
   loaded: boolean;
   error: string | null;
+  // Add the missing microphone-related properties
+  enableMicrophone: () => Promise<boolean>;
+  stopMicrophone: () => void;
+  isMicrophoneEnabled: boolean;
+  isProcessing: boolean;
 }
 
 export function useAudio({
@@ -36,6 +41,10 @@ export function useAudio({
   const [currentTime, setCurrentTime] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Add new state for microphone functionality
+  const [isMicrophoneEnabled, setIsMicrophoneEnabled] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const microphoneStreamRef = useRef<MediaStream | null>(null);
 
   // Lazily initialize the audio element
   const getAudio = useCallback(() => {
@@ -116,6 +125,12 @@ export function useAudio({
         // Help browser GC the audio element
         audioRef.current = null;
       }
+      
+      // Clean up microphone stream if active
+      if (microphoneStreamRef.current) {
+        microphoneStreamRef.current.getTracks().forEach(track => track.stop());
+        microphoneStreamRef.current = null;
+      }
     };
   }, [src, loop, volume, getAudio]);
 
@@ -156,6 +171,37 @@ export function useAudio({
     }
   }, [getAudio]);
 
+  // Add new methods for microphone functionality
+  const enableMicrophone = useCallback(async (): Promise<boolean> => {
+    try {
+      setIsProcessing(true);
+      
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Store the stream for later cleanup
+      microphoneStreamRef.current = stream;
+      
+      setIsMicrophoneEnabled(true);
+      setIsProcessing(false);
+      return true;
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+      setError(`Error accessing microphone: ${err}`);
+      setIsProcessing(false);
+      return false;
+    }
+  }, []);
+
+  const stopMicrophone = useCallback(() => {
+    if (microphoneStreamRef.current) {
+      // Stop all tracks in the stream
+      microphoneStreamRef.current.getTracks().forEach(track => track.stop());
+      microphoneStreamRef.current = null;
+      setIsMicrophoneEnabled(false);
+    }
+  }, []);
+
   return {
     playing,
     play,
@@ -167,7 +213,12 @@ export function useAudio({
     currentTime,
     element: audioRef.current,
     loaded,
-    error
+    error,
+    // Return the new microphone-related properties
+    enableMicrophone,
+    stopMicrophone,
+    isMicrophoneEnabled,
+    isProcessing
   };
 }
 
