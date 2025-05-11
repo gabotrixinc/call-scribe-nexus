@@ -43,7 +43,8 @@ const RegisterPage: React.FC = () => {
         first_name: data.firstName,
         last_name: data.lastName,
       });
-      navigate('/login', { state: { registered: true } });
+      // Redirigir al onboarding en lugar de la página de login
+      navigate('/onboarding');
     } catch (err: any) {
       setError(err.message || 'Error al crear la cuenta');
     }

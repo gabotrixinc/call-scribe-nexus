@@ -16,6 +16,7 @@ import MessagingPage from './pages/MessagingPage';
 import ReportsPage from './pages/ReportsPage';
 import FeedbackPage from './pages/FeedbackPage';
 import { AuthProvider } from './hooks/auth/AuthProvider';
+import OnboardingPage from './pages/onboarding/OnboardingPage';
 
 const App = () => {
   return (
@@ -27,6 +28,9 @@ const App = () => {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+          {/* Onboarding route */}
+          <Route path="/onboarding" element={<OnboardingPage />} />
 
           {/* Protected routes */}
           <Route path="/" element={<Dashboard />} />
