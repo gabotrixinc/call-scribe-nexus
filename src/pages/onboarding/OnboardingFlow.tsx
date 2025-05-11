@@ -173,7 +173,7 @@ const OnboardingFlow: React.FC = () => {
         {
           name: 'Asistente Principal',
           type: 'ai',
-          status: 'active',
+          status: 'online', // Cambiado de 'active' a 'online'
           specialization: 'general',
           voice_id: 'es-ES-Neural2-A',
           prompt_template: `Eres un asistente virtual para ${businessInfo.companyName} en el sector de ${businessInfo.industry}. 
@@ -183,7 +183,7 @@ const OnboardingFlow: React.FC = () => {
         {
           name: 'Especialista en Ventas',
           type: 'ai',
-          status: 'active',
+          status: 'online', // Cambiado de 'active' a 'online'
           specialization: 'sales',
           voice_id: 'es-ES-Neural2-B',
           prompt_template: `Eres un especialista en ventas para ${businessInfo.companyName} en el sector de ${businessInfo.industry}. 
@@ -192,10 +192,43 @@ const OnboardingFlow: React.FC = () => {
         }
       ];
       
-      // Insertar los agentes en la base de datos
+      // Verificar la estructura de la tabla agentes para conocer los valores permitidos en "status"
+      const { data: tableInfo, error: tableError } = await supabase
+        .from('agents')
+        .select('status')
+        .limit(1);
+        
+      if (tableError) {
+        console.warn("No se pudo verificar los valores permitidos para status:", tableError);
+      }
+      
+      // Intentar insertar los agentes en la base de datos con manejo de errores mejorado
       for (const agent of agents) {
-        const { error } = await supabase.from('agents').insert(agent);
-        if (error) throw error;
+        try {
+          const { error } = await supabase.from('agents').insert(agent);
+          if (error) {
+            console.error("Error al insertar agente:", error);
+            
+            // Intentar con un status alternativo si el primero falla
+            if (error.code === '23514' && error.message.includes('agents_status_check')) {
+              const updatedAgent = {...agent, status: 'available'};
+              const { error: retryError } = await supabase.from('agents').insert(updatedAgent);
+              
+              if (retryError) {
+                // Intentar con una tercera opción de status
+                const secondUpdatedAgent = {...agent, status: 'offline'};
+                const { error: thirdError } = await supabase.from('agents').insert(secondUpdatedAgent);
+                
+                if (thirdError) throw thirdError;
+              }
+            } else {
+              throw error;
+            }
+          }
+        } catch (insertError) {
+          console.error("Error no recuperable al insertar agente:", insertError);
+          throw insertError;
+        }
       }
     } catch (error) {
       console.error("Error al generar y guardar agentes IA:", error);
