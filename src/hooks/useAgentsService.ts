@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -7,7 +8,7 @@ type AgentRow = Database['public']['Tables']['agents']['Row'];
 
 export interface Agent extends AgentRow {
   type: 'ai' | 'human';
-  status: 'available' | 'busy' | 'offline';
+  status: 'available' | 'busy' | 'offline' | 'online';
 }
 
 export const useAgentsService = () => {
@@ -23,6 +24,8 @@ export const useAgentsService = () => {
           .order('name');
 
         if (error) throw error;
+        
+        console.log("Agents from database:", data);
         return data as Agent[];
       } catch (error) {
         console.error('Error fetching agents:', error);
@@ -70,6 +73,8 @@ export const useAgentsService = () => {
   const createAgent = useMutation({
     mutationFn: async (newAgent: Omit<Agent, 'id' | 'created_at'>) => {
       try {
+        console.log("Creating new agent:", newAgent);
+        
         const { data, error } = await supabase
           .from('agents')
           .insert([newAgent])

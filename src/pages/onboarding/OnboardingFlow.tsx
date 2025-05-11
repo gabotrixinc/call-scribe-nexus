@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,6 +22,8 @@ import OnboardingStepTwo from './steps/OnboardingStepTwo';
 import OnboardingStepThree from './steps/OnboardingStepThree';
 import OnboardingLoader from './components/OnboardingLoader';
 import OnboardingComplete from './steps/OnboardingComplete';
+import { Agent } from '@/hooks/useAgentsService';
+import { AgentConfig } from '@/types/onboarding';
 
 // Definición del tipo para los pasos del onboarding
 type OnboardingStep = 'welcome' | 'business-info' | 'ai-agents' | 'processing' | 'complete';
@@ -55,6 +58,9 @@ const OnboardingFlow: React.FC = () => {
     workflowsSetup: 0,
     templatesCreated: 0
   });
+
+  // Estado para los agentes generados
+  const [generatedAgents, setGeneratedAgents] = useState<AgentConfig[]>([]);
 
   const goToNextStep = () => {
     switch (currentStep) {
@@ -102,7 +108,8 @@ const OnboardingFlow: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Configurar agentes IA basados en el prompt
-      await generateAndSaveAiAgents();
+      const createdAgents = await generateAndSaveAiAgents();
+      setGeneratedAgents(createdAgents);
       setConfigProgress(prev => ({ ...prev, promptsConfigured: 4 }));
       progress += 25;
       
@@ -161,77 +168,162 @@ const OnboardingFlow: React.FC = () => {
     }
   };
 
-  const generateAndSaveAiAgents = async () => {
+  const generateAndSaveAiAgents = async (): Promise<AgentConfig[]> => {
     try {
-      // Crear agentes básicos según el prompt proporcionado
+      // Analizar el prompt del usuario para determinar los agentes a crear
       // En un sistema real, aquí usaríamos un procesamiento de lenguaje natural
       // para extraer información relevante del prompt y crear agentes personalizados
       
-      // Para este ejemplo, creamos agentes por defecto
-      const agents = [
+      // Extraer información básica de especialización del prompt
+      let specialization = 'general';
+      let salesSpecialist = false;
+      let supportSpecialist = false;
+      
+      if (aiSetupPrompt.toLowerCase().includes('ventas') || 
+          aiSetupPrompt.toLowerCase().includes('vender') || 
+          businessInfo.mainGoal === 'sales') {
+        salesSpecialist = true;
+      }
+      
+      if (aiSetupPrompt.toLowerCase().includes('soporte') || 
+          aiSetupPrompt.toLowerCase().includes('ayuda técnica') || 
+          aiSetupPrompt.toLowerCase().includes('problemas técnicos') || 
+          businessInfo.mainGoal === 'support') {
+        supportSpecialist = true;
+      }
+      
+      // Crear agentes según el análisis y la información del negocio
+      const agents: AgentConfig[] = [
         {
-          name: 'Asistente Principal',
+          name: 'Asistente Principal de ' + businessInfo.companyName,
           type: 'ai',
-          status: 'online', // Cambiado de 'active' a 'online'
+          status: 'available',
           specialization: 'general',
           voice_id: 'es-ES-Neural2-A',
           prompt_template: `Eres un asistente virtual para ${businessInfo.companyName} en el sector de ${businessInfo.industry}. 
             ${aiSetupPrompt}
-            Siempre mantén un tono profesional y amigable.`
-        },
-        {
+            Descripción del negocio: ${businessInfo.description}
+            Siempre mantén un tono profesional y amigable. El objetivo principal es ${getGoalDescription(businessInfo.mainGoal)}.`
+        }
+      ];
+      
+      // Agregar especialista en ventas si es necesario
+      if (salesSpecialist) {
+        agents.push({
           name: 'Especialista en Ventas',
           type: 'ai',
-          status: 'online', // Cambiado de 'active' a 'online'
+          status: 'available',
           specialization: 'sales',
           voice_id: 'es-ES-Neural2-B',
           prompt_template: `Eres un especialista en ventas para ${businessInfo.companyName} en el sector de ${businessInfo.industry}. 
             ${aiSetupPrompt}
-            Enfócate en convertir consultas en ventas con un enfoque persuasivo pero no agresivo.`
-        }
-      ];
-      
-      // Verificar la estructura de la tabla agentes para conocer los valores permitidos en "status"
-      const { data: tableInfo, error: tableError } = await supabase
-        .from('agents')
-        .select('status')
-        .limit(1);
-        
-      if (tableError) {
-        console.warn("No se pudo verificar los valores permitidos para status:", tableError);
+            Descripción del negocio: ${businessInfo.description}
+            Enfócate en convertir consultas en ventas con un enfoque persuasivo pero no agresivo. El objetivo principal es ${getGoalDescription('sales')}.`
+        });
       }
       
-      // Intentar insertar los agentes en la base de datos con manejo de errores mejorado
+      // Agregar especialista en soporte si es necesario
+      if (supportSpecialist) {
+        agents.push({
+          name: 'Soporte Técnico',
+          type: 'ai',
+          status: 'available',
+          specialization: 'support',
+          voice_id: 'es-ES-Neural2-C',
+          prompt_template: `Eres un especialista en soporte técnico para ${businessInfo.companyName} en el sector de ${businessInfo.industry}. 
+            ${aiSetupPrompt}
+            Descripción del negocio: ${businessInfo.description}
+            Tu objetivo es ayudar a resolver problemas técnicos de forma clara y eficiente. El objetivo principal es ${getGoalDescription('support')}.`
+        });
+      }
+      
+      // Intentar insertar los agentes en la base de datos
+      const createdAgents: AgentConfig[] = [];
+      
       for (const agent of agents) {
         try {
-          const { error } = await supabase.from('agents').insert(agent);
+          console.log("Intentando crear agente:", agent);
+          const { data, error } = await supabase.from('agents').insert({
+            name: agent.name,
+            type: agent.type,
+            status: agent.status,
+            specialization: agent.specialization,
+            voice_id: agent.voice_id,
+            prompt_template: agent.prompt_template
+          }).select();
+          
           if (error) {
-            console.error("Error al insertar agente:", error);
+            console.error("Error al crear agente:", error);
             
             // Intentar con un status alternativo si el primero falla
-            if (error.code === '23514' && error.message.includes('agents_status_check')) {
-              const updatedAgent = {...agent, status: 'available'};
-              const { error: retryError } = await supabase.from('agents').insert(updatedAgent);
+            const { data: retryData, error: retryError } = await supabase.from('agents').insert({
+              name: agent.name,
+              type: agent.type,
+              status: 'online',
+              specialization: agent.specialization,
+              voice_id: agent.voice_id,
+              prompt_template: agent.prompt_template
+            }).select();
+            
+            if (retryError) {
+              console.error("Error en segundo intento:", retryError);
               
-              if (retryError) {
-                // Intentar con una tercera opción de status
-                const secondUpdatedAgent = {...agent, status: 'offline'};
-                const { error: thirdError } = await supabase.from('agents').insert(secondUpdatedAgent);
-                
-                if (thirdError) throw thirdError;
+              // Último intento con status offline
+              const { data: lastData, error: lastError } = await supabase.from('agents').insert({
+                name: agent.name,
+                type: agent.type,
+                status: 'offline',
+                specialization: agent.specialization,
+                voice_id: agent.voice_id,
+                prompt_template: agent.prompt_template
+              }).select();
+              
+              if (lastError) {
+                console.error("Error en tercer intento:", lastError);
+              } else {
+                console.log("Agente creado en tercer intento:", lastData);
+                if (lastData && lastData.length > 0) {
+                  createdAgents.push({...agent, status: 'offline'});
+                }
               }
             } else {
-              throw error;
+              console.log("Agente creado en segundo intento:", retryData);
+              if (retryData && retryData.length > 0) {
+                createdAgents.push({...agent, status: 'online'});
+              }
+            }
+          } else {
+            console.log("Agente creado en primer intento:", data);
+            if (data && data.length > 0) {
+              createdAgents.push(agent);
             }
           }
-        } catch (insertError) {
-          console.error("Error no recuperable al insertar agente:", insertError);
-          throw insertError;
+        } catch (error) {
+          console.error("Error no controlado al crear agente:", error);
         }
       }
+      
+      return createdAgents;
     } catch (error) {
       console.error("Error al generar y guardar agentes IA:", error);
-      throw error;
+      return [];
+    }
+  };
+
+  const getGoalDescription = (goal: string): string => {
+    switch (goal) {
+      case 'customer_service':
+        return 'proporcionar un excelente servicio al cliente, resolviendo consultas y problemas rápidamente';
+      case 'sales':
+        return 'aumentar las ventas, ayudando a los clientes a encontrar los productos adecuados y completar compras';
+      case 'lead_gen':
+        return 'generar leads calificados, recopilando información de contacto y calificando el interés del cliente';
+      case 'support':
+        return 'ofrecer soporte técnico eficiente, guiando a los usuarios a través de soluciones paso a paso';
+      case 'engagement':
+        return 'mejorar el engagement con los clientes, creando interacciones personalizadas y significativas';
+      default:
+        return 'mejorar la experiencia general del cliente';
     }
   };
 
@@ -331,7 +423,7 @@ const OnboardingFlow: React.FC = () => {
         );
       
       case 'complete':
-        return <OnboardingComplete onFinish={goToNextStep} />;
+        return <OnboardingComplete onFinish={goToNextStep} generatedAgents={generatedAgents} />;
       
       default:
         return null;

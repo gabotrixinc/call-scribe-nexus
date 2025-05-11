@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,10 @@ const AgentsList: React.FC = () => {
   const [showConfigPrompt, setShowConfigPrompt] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   
+  useEffect(() => {
+    console.log("Agents loaded from database:", agents);
+  }, [agents]);
+  
   const handleEditAgent = (agentId: string) => {
     toast({
       title: "Editar Agente",
@@ -49,13 +53,14 @@ const AgentsList: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (agentId: string, newStatus: 'available' | 'busy' | 'offline') => {
+  const handleStatusChange = async (agentId: string, newStatus: 'available' | 'busy' | 'offline' | 'online') => {
     await updateAgentStatus.mutateAsync({ agentId, status: newStatus });
   };
   
   const getStatusColor = (status: string) => {
     switch (status) {
       case "available":
+      case "online":
         return "bg-green-500";
       case "busy":
         return "bg-yellow-500";
@@ -63,6 +68,20 @@ const AgentsList: React.FC = () => {
         return "bg-gray-500";
       default:
         return "bg-gray-500";
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "available":
+      case "online":
+        return "Disponible";
+      case "busy":
+        return "Ocupado";
+      case "offline":
+        return "Desconectado";
+      default:
+        return status;
     }
   };
 
@@ -90,113 +109,125 @@ const AgentsList: React.FC = () => {
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <table className="w-full caption-bottom text-sm">
-              <thead>
-                <tr className="border-b transition-colors hover:bg-muted/50">
-                  <th className="h-12 px-4 text-left align-middle font-medium">Agente</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Tipo</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Estado</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Llamadas Activas</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Especialidad</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Voz</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agents && agents.map((agent) => (
-                  <tr key={agent.id} className="border-b transition-colors hover:bg-muted/50">
-                    <td className="p-4 align-middle font-medium">
-                      <div className="flex items-center gap-2">
-                        {agent.type === "ai" ? (
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-primary/10 text-primary">
-                            AI
-                          </div>
-                        ) : (
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-secondary/10">
-                            <User className="h-4 w-4 text-secondary" />
-                          </div>
-                        )}
-                        {agent.name}
-                      </div>
-                    </td>
-                    <td className="p-4 align-middle">
-                      <Badge variant={agent.type === "ai" ? "secondary" : "default"}>
-                        {agent.type === "ai" ? "AI" : "Humano"}
-                      </Badge>
-                    </td>
-                    <td className="p-4 align-middle">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-auto p-0 font-normal">
-                            <div className="flex items-center gap-2">
-                              <div className={`h-2 w-2 rounded-full ${getStatusColor(agent.status)}`}></div>
-                              <span className="capitalize">
-                                {agent.status === "available" ? "Disponible" : 
-                                agent.status === "busy" ? "Ocupado" : "Desconectado"}
-                              </span>
+          {agents && agents.length > 0 ? (
+            <div className="rounded-md border">
+              <table className="w-full caption-bottom text-sm">
+                <thead>
+                  <tr className="border-b transition-colors hover:bg-muted/50">
+                    <th className="h-12 px-4 text-left align-middle font-medium">Agente</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium">Tipo</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium">Estado</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium">Llamadas Activas</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium">Especialidad</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium">Voz</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {agents.map((agent) => (
+                    <tr key={agent.id} className="border-b transition-colors hover:bg-muted/50">
+                      <td className="p-4 align-middle font-medium">
+                        <div className="flex items-center gap-2">
+                          {agent.type === "ai" ? (
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-primary/10 text-primary">
+                              AI
                             </div>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuLabel>Cambiar estado</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleStatusChange(agent.id, "available")}>
-                            <div className="h-2 w-2 rounded-full bg-green-500 mr-2"></div>
-                            Disponible
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(agent.id, "busy")}>
-                            <div className="h-2 w-2 rounded-full bg-yellow-500 mr-2"></div>
-                            Ocupado
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(agent.id, "offline")}>
-                            <div className="h-2 w-2 rounded-full bg-gray-500 mr-2"></div>
-                            Desconectado
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                    <td className="p-4 align-middle">0</td>
-                    <td className="p-4 align-middle">{agent.specialization || "--"}</td>
-                    <td className="p-4 align-middle">{agent.voice_id || "--"}</td>
-                    <td className="p-4 align-middle">
-                      <div className="flex space-x-2">
-                        {agent.type === "ai" && (
-                          <Button size="sm" variant="outline" onClick={() => handleConfigurePrompt(agent.id)}>
-                            <Settings className="h-4 w-4 mr-1" />
-                            Configurar
-                          </Button>
-                        )}
+                          ) : (
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-secondary/10">
+                              <User className="h-4 w-4 text-secondary" />
+                            </div>
+                          )}
+                          {agent.name}
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle">
+                        <Badge variant={agent.type === "ai" ? "secondary" : "default"}>
+                          {agent.type === "ai" ? "AI" : "Humano"}
+                        </Badge>
+                      </td>
+                      <td className="p-4 align-middle">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button size="sm" variant="ghost">
-                              <MoreHorizontal className="h-4 w-4" />
+                            <Button variant="ghost" size="sm" className="h-auto p-0 font-normal">
+                              <div className="flex items-center gap-2">
+                                <div className={`h-2 w-2 rounded-full ${getStatusColor(agent.status)}`}></div>
+                                <span className="capitalize">
+                                  {getStatusText(agent.status)}
+                                </span>
+                              </div>
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                          <DropdownMenuContent>
+                            <DropdownMenuLabel>Cambiar estado</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleEditAgent(agent.id)}>Editar</DropdownMenuItem>
-                            <DropdownMenuItem>Clonar</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStatusChange(agent.id, agent.status === "offline" ? "available" : "offline")}>
-                              {agent.status === "offline" ? "Activar" : "Desactivar"}
+                            <DropdownMenuItem onClick={() => handleStatusChange(agent.id, "available")}>
+                              <div className="h-2 w-2 rounded-full bg-green-500 mr-2"></div>
+                              Disponible
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="text-destructive"
-                              onClick={() => handleDeleteAgent(agent.id)}
-                            >
-                              Eliminar
+                            <DropdownMenuItem onClick={() => handleStatusChange(agent.id, "busy")}>
+                              <div className="h-2 w-2 rounded-full bg-yellow-500 mr-2"></div>
+                              Ocupado
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(agent.id, "offline")}>
+                              <div className="h-2 w-2 rounded-full bg-gray-500 mr-2"></div>
+                              Desconectado
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </td>
+                      <td className="p-4 align-middle">0</td>
+                      <td className="p-4 align-middle">{agent.specialization || "--"}</td>
+                      <td className="p-4 align-middle">{agent.voice_id || "--"}</td>
+                      <td className="p-4 align-middle">
+                        <div className="flex space-x-2">
+                          {agent.type === "ai" && (
+                            <Button size="sm" variant="outline" onClick={() => handleConfigurePrompt(agent.id)}>
+                              <Settings className="h-4 w-4 mr-1" />
+                              Configurar
+                            </Button>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleEditAgent(agent.id)}>Editar</DropdownMenuItem>
+                              <DropdownMenuItem>Clonar</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleStatusChange(agent.id, agent.status === "offline" ? "available" : "offline")}>
+                                {agent.status === "offline" ? "Activar" : "Desactivar"}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onClick={() => handleDeleteAgent(agent.id)}
+                              >
+                                Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Users className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No hay agentes configurados</h3>
+              <p className="text-muted-foreground text-center max-w-md mb-4">
+                Los agentes te permiten automatizar conversaciones y atender a tus clientes de forma eficiente.
+              </p>
+              <Button onClick={() => setShowNewAgentForm(true)}>
+                Crear primer agente
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
