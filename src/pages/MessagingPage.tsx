@@ -1,13 +1,45 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import TemplateManager from '@/components/messaging/TemplateManager';
 import WhatsappConfiguration from '@/components/messaging/WhatsappConfiguration';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConversationsList from '@/components/messaging/ConversationsList';
+import { supabase } from '@/integrations/supabase/client';
+import { WhatsappConversation } from '@/types/messaging';
+import { useQuery } from '@tanstack/react-query';
+import { toast } from '@/components/ui/use-toast';
 
 const MessagingPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('conversations');
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  
+  const { data: conversations, isLoading, error } = useQuery({
+    queryKey: ['whatsapp-conversations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('whatsapp_conversations')
+        .select('*, agents(id, name)')
+        .order('last_message_time', { ascending: false });
+      
+      if (error) throw error;
+      return data as WhatsappConversation[];
+    }
+  });
+
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Error al cargar conversaciones",
+        description: "No se pudieron cargar las conversaciones. Intente nuevamente.",
+        variant: "destructive"
+      });
+    }
+  }, [error]);
+  
+  const handleSelectConversation = (id: string) => {
+    setSelectedConversationId(id);
+  };
   
   return (
     <Layout>
@@ -32,7 +64,12 @@ const MessagingPage: React.FC = () => {
           </TabsList>
           
           <TabsContent value="conversations" className="space-y-4">
-            <ConversationsList />
+            <ConversationsList 
+              conversations={conversations || []} 
+              isLoading={isLoading} 
+              selectedConversationId={selectedConversationId}
+              onSelectConversation={handleSelectConversation}
+            />
           </TabsContent>
           
           <TabsContent value="templates">
