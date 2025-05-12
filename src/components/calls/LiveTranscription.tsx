@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const realtimeChannelRef = useRef<any>(null);
-  const intervalIdRef = useRef<number | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (isActive) {
@@ -49,9 +50,9 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
       if (realtimeChannelRef.current) {
         supabase.removeChannel(realtimeChannelRef.current);
       }
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
   }, [isActive, callId]);
@@ -65,8 +66,38 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
 
   const fetchTranscriptions = async () => {
     try {
-      // Simulate fetching transcriptions
-      // In production, this would connect to a real database table
+      // Fetch actual transcriptions from the database
+      const { data, error } = await supabase
+        .from('calls')
+        .select(`
+          id,
+          transcript
+        `)
+        .eq('id', callId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching call transcript:", error);
+        return;
+      }
+
+      if (data?.transcript) {
+        try {
+          // If transcript is stored as a string, parse it
+          const parsedTranscript = typeof data.transcript === 'string' 
+            ? JSON.parse(data.transcript) 
+            : data.transcript;
+            
+          if (Array.isArray(parsedTranscript)) {
+            setTranscription(parsedTranscript as TranscriptionItem[]);
+            return;
+          }
+        } catch (e) {
+          console.error("Error parsing transcript:", e);
+        }
+      }
+      
+      // Set an initial greeting if no transcript is available
       setTranscription([
         {
           id: '1',
@@ -94,19 +125,32 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
 
   const subscribeToTranscriptions = () => {
     try {
+      // Subscribe to changes in the calls table for this specific call
       const channel = supabase
-        .channel('call-transcriptions')
+        .channel(`call-transcriptions-${callId}`)
         .on(
           'postgres_changes',
           { 
-            event: 'INSERT', 
+            event: 'UPDATE', 
             schema: 'public', 
             table: 'calls',
             filter: `id=eq.${callId}`
           },
           (payload) => {
-            // This is a simplified handler just for the example
-            console.log("Received real-time update:", payload);
+            // When the call record gets updated, check if the transcript changed
+            if (payload.new && payload.new.transcript) {
+              try {
+                const newTranscript = typeof payload.new.transcript === 'string' 
+                  ? JSON.parse(payload.new.transcript) 
+                  : payload.new.transcript;
+                  
+                if (Array.isArray(newTranscript)) {
+                  setTranscription(newTranscript as TranscriptionItem[]);
+                }
+              } catch (e) {
+                console.error("Error parsing updated transcript:", e);
+              }
+            }
           }
         )
         .subscribe();
@@ -136,71 +180,11 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
       mediaRecorder.onstop = async () => {
         // Process audio when recording stops
         if (audioChunksRef.current.length > 0) {
-          try {
-            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-            
-            // Convert blob to base64 for sending to server
-            const reader = new FileReader();
-            reader.readAsDataURL(audioBlob);
-            reader.onloadend = async () => {
-              const base64data = reader.result?.toString().split(',')[1];
-              
-              if (base64data) {
-                try {
-                  // Send to edge function for transcription
-                  const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-                    body: {
-                      action: 'transcribe',
-                      callId,
-                      audioData: base64data
-                    }
-                  });
-
-                  if (error) throw error;
-                  
-                  if (data && data.success) {
-                    // Transcription is handled by the edge function
-                    // and saved to the database, which will trigger
-                    // the realtime subscription
-                    console.log("Transcription processed:", data.transcription);
-                    
-                    // In this example, let's add it manually since we don't have the actual table
-                    const newItem: TranscriptionItem = {
-                      id: Date.now().toString(),
-                      call_id: callId,
-                      text: data.transcription || "Transcripción simulada para pruebas",
-                      timestamp: new Date().toISOString(),
-                      source: 'human'
-                    };
-                    
-                    setTranscription(prev => [...prev, newItem]);
-                  }
-                } catch (transcriptionError) {
-                  console.error("Error with transcription:", transcriptionError);
-                  
-                  // For development/demo: Add a simulated transcription
-                  const newItem: TranscriptionItem = {
-                    id: Date.now().toString(),
-                    call_id: callId,
-                    text: "Esto es una transcripción simulada mientras se configura el servicio de transcripción.",
-                    timestamp: new Date().toISOString(),
-                    source: 'human'
-                  };
-                  
-                  setTranscription(prev => [...prev, newItem]);
-                }
-                
-                setIsProcessing(false);
-              }
-            };
-          } catch (error) {
-            console.error("Error processing audio:", error);
-            setIsProcessing(false);
-          }
+          processAudioForTranscription();
         }
       };
       
-      // Start recording and set interval to capture audio every few seconds
+      // Start recording
       mediaRecorder.start();
       setIsRecording(true);
       
@@ -222,7 +206,7 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
       }, 5000); // Process audio every 5 seconds
       
       // Store the interval ID to clear it later
-      intervalIdRef.current = intervalId;
+      intervalRef.current = intervalId;
       
       setIsProcessing(false);
       
@@ -241,12 +225,81 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
     }
   };
 
+  const processAudioForTranscription = async () => {
+    try {
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      
+      // Convert blob to base64 for sending to server
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      reader.onloadend = async () => {
+        const base64data = reader.result?.toString().split(',')[1];
+        
+        if (base64data) {
+          try {
+            // Send to edge function for transcription
+            const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+              body: {
+                action: 'transcribe',
+                callId,
+                audioData: base64data
+              }
+            });
+
+            if (error) throw error;
+            
+            if (data && data.success && data.transcription) {
+              // Add new transcription item
+              const newItem: TranscriptionItem = {
+                id: Date.now().toString(),
+                call_id: callId,
+                text: data.transcription,
+                timestamp: new Date().toISOString(),
+                source: 'human'
+              };
+              
+              // Update local state
+              const updatedTranscription = [...transcription, newItem];
+              setTranscription(updatedTranscription);
+              
+              // Update call record with the new transcription
+              await updateCallTranscript(updatedTranscription);
+            }
+          } catch (transcriptionError) {
+            console.error("Error with transcription:", transcriptionError);
+          }
+        }
+        setIsProcessing(false);
+      };
+    } catch (error) {
+      console.error("Error processing audio:", error);
+      setIsProcessing(false);
+    }
+  };
+
+  const updateCallTranscript = async (updatedTranscription: TranscriptionItem[]) => {
+    try {
+      const { error } = await supabase
+        .from('calls')
+        .update({ 
+          transcript: JSON.stringify(updatedTranscription)
+        })
+        .eq('id', callId);
+        
+      if (error) {
+        console.error("Error updating call transcript:", error);
+      }
+    } catch (error) {
+      console.error("Error in updateCallTranscript:", error);
+    }
+  };
+
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       // Clear the interval if it exists
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
       
       mediaRecorderRef.current.stop();
@@ -277,7 +330,6 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
   // Add a new transcription entry (for testing or manual entry)
   const addTestEntry = async () => {
     try {
-      // Instead of trying to insert to a non-existent table, we'll just add it to the state
       const newItem: TranscriptionItem = {
         id: Date.now().toString(),
         call_id: callId,
@@ -286,7 +338,11 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
         source: isRecording ? 'human' : 'ai'
       };
       
-      setTranscription(prev => [...prev, newItem]);
+      const updatedTranscription = [...transcription, newItem];
+      setTranscription(updatedTranscription);
+      
+      // Update the call record with the new transcription
+      await updateCallTranscript(updatedTranscription);
     } catch (error) {
       console.error("Error adding test transcription:", error);
     }

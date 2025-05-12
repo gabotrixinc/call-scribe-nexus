@@ -65,7 +65,7 @@ serve(async (req) => {
     const { data: availableAgents, error: agentsError } = await supabase
       .from('agents')
       .select('id, name')
-      .eq('status', 'active')
+      .eq('status', 'available')
       .eq('type', 'ai')
       .limit(1);
     
@@ -79,7 +79,28 @@ serve(async (req) => {
       
     console.log(`Selected agent for call: ${assignedAgentId}`);
     
-    // Create call record
+    // Check if the call already exists
+    const { data: existingCall } = await supabase
+      .from('calls')
+      .select('id')
+      .eq('twilio_call_sid', CallSid)
+      .maybeSingle();
+      
+    if (existingCall) {
+      console.log(`Call with SID ${CallSid} already exists, updating status`);
+      await supabase
+        .from('calls')
+        .update({
+          status: 'active',
+          ai_agent_id: assignedAgentId || existingCall.ai_agent_id
+        })
+        .eq('id', existingCall.id);
+        
+      // Generate TwiML response for Twilio for existing call
+      return generateTwiMLResponse(To, assignedAgentId, corsHeaders);
+    }
+      
+    // Create call record for new call
     const { data: callData, error: callError } = await supabase
       .from('calls')
       .insert([
@@ -87,9 +108,16 @@ serve(async (req) => {
           twilio_call_sid: CallSid,
           status: 'active',
           caller_number: From,
-          caller_name: null,
+          caller_name: await lookupCallerName(From, supabase),
           ai_agent_id: assignedAgentId,
-          start_time: new Date().toISOString()
+          start_time: new Date().toISOString(),
+          transcript: JSON.stringify([{
+            id: crypto.randomUUID(),
+            call_id: 'pending', // Will be updated after insert
+            text: 'Hola, ¿en qué puedo ayudarle?',
+            timestamp: new Date().toISOString(),
+            source: 'ai'
+          }])
         }
       ])
       .select()
@@ -97,56 +125,44 @@ serve(async (req) => {
     
     if (callError) {
       console.error('Error creating call record:', callError);
+      throw callError;
     } else {
       console.log('Created call record:', callData);
+      
+      // Update transcript with the correct call_id
+      if (callData && callData.transcript) {
+        try {
+          const transcript = JSON.parse(callData.transcript);
+          transcript[0].call_id = callData.id;
+          
+          await supabase
+            .from('calls')
+            .update({
+              transcript: JSON.stringify(transcript)
+            })
+            .eq('id', callData.id);
+        } catch (error) {
+          console.error('Error updating transcript with call ID:', error);
+        }
+      }
     }
     
-    // Notify clients about new call via realtime
-    try {
-      const channel = supabase.channel('new-call-notification');
-      await channel.subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.send({
-            type: 'broadcast',
-            event: 'new-call',
-            payload: {
-              callId: callData?.id,
-              callSid: CallSid,
-              callerNumber: From,
-              timestamp: new Date().toISOString(),
-              agentId: assignedAgentId
-            },
-          });
-        }
-      });
-    } catch (broadcastError) {
-      console.error('Error broadcasting new call:', broadcastError);
-    }
+    // Broadcast realtime notification about new call
+    const channel = supabase.channel('public:calls');
+    await channel.publish({
+      type: 'broadcast',
+      event: 'new-call',
+      payload: {
+        callId: callData?.id,
+        callSid: CallSid,
+        callerNumber: From,
+        timestamp: new Date().toISOString(),
+        agentId: assignedAgentId
+      }
+    });
     
     // Generate TwiML response for Twilio
-    const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say language="es-ES">Bienvenido a nuestro centro de contacto. Su llamada está siendo procesada.</Say>
-  <Pause length="1"/>
-  ${assignedAgentId 
-    ? `<Say language="es-ES">Conectando con un agente disponible...</Say>
-       <Dial timeout="30" record="record-from-answer" callerId="${To}">
-         <Client>agent-${assignedAgentId}</Client>
-       </Dial>`
-    : `<Say language="es-ES">Todos nuestros agentes están ocupados. Por favor intente más tarde.</Say>`
-  }
-  <Say language="es-ES">Gracias por contactar con nuestro centro. Adiós.</Say>
-  <Hangup/>
-</Response>`;
-    
-    console.log('Generated TwiML response');
-    
-    return new Response(twimlResponse, { 
-      headers: { 
-        ...corsHeaders, 
-        'Content-Type': 'text/xml' 
-      } 
-    });
+    return generateTwiMLResponse(To, assignedAgentId, corsHeaders);
     
   } catch (error) {
     console.error('Error processing inbound call:', error);
@@ -166,3 +182,55 @@ serve(async (req) => {
     });
   }
 });
+
+// Helper function to generate TwiML response
+function generateTwiMLResponse(toNumber: string, agentId: string | null, corsHeaders: any) {
+  const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="es-ES">Bienvenido a nuestro centro de contacto. Su llamada está siendo procesada.</Say>
+  <Pause length="1"/>
+  ${agentId 
+    ? `<Say language="es-ES">Conectando con un agente disponible...</Say>
+       <Dial timeout="30" record="record-from-answer" callerId="${toNumber}">
+         <Client>agent-${agentId}</Client>
+       </Dial>`
+    : `<Say language="es-ES">Todos nuestros agentes están ocupados. Por favor intente más tarde.</Say>`
+  }
+  <Say language="es-ES">Gracias por contactar con nuestro centro. Adiós.</Say>
+  <Hangup/>
+</Response>`;
+  
+  console.log('Generated TwiML response');
+  
+  return new Response(twimlResponse, { 
+    headers: { 
+      ...corsHeaders, 
+      'Content-Type': 'text/xml' 
+    } 
+  });
+}
+
+// Helper function to look up caller name from contacts
+async function lookupCallerName(phoneNumber: string, supabase: any): Promise<string | null> {
+  try {
+    // Normalize phone number for comparison
+    const normalizedPhone = phoneNumber.replace(/\D/g, '').replace(/^00/, '+');
+    
+    // Look up in contacts
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('name')
+      .or(`phone.ilike.%${normalizedPhone}%,phone.ilike.%${normalizedPhone.substring(normalizedPhone.length - 9)}%`)
+      .maybeSingle();
+      
+    if (error) {
+      console.error('Error looking up contact:', error);
+      return null;
+    }
+    
+    return data?.name || null;
+  } catch (error) {
+    console.error('Error in lookupCallerName:', error);
+    return null;
+  }
+}

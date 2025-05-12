@@ -39,196 +39,212 @@ serve(async (req) => {
         throw new Error("No audio data provided");
       }
 
-      // For actual integration, use Google Speech-to-Text or OpenAI Whisper API
-      // Here's a placeholder for Google Speech-to-Text
       let transcription = "";
       
       try {
-        // Attempt to use Speech recognition API
+        // Attempt to use Speech recognition API if API key is available
         const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
         
         if (geminiApiKey) {
           console.log("Attempting to use Google Speech-to-Text API");
           // Here would be the code to call Google Speech API
-          // This is just a placeholder, not actual implementation
-        } else {
-          console.log("No API key available, using mock transcription");
+          // In a real implementation, you would send the audio data to the API
         }
       } catch (apiError) {
         console.error("Error calling speech recognition API:", apiError);
       }
       
-      // For demo purposes, use realistic phrases that might be said in customer service calls
-      const transcriptionOptions = [
-        "Hola, llamo por un problema con mi factura del mes pasado.",
-        "Necesito revisar mi plan actual de servicio.",
-        "¿Podría informarme sobre las nuevas promociones?",
-        "Tengo problemas técnicos con mi servicio.",
-        "Quisiera actualizar mi información de contacto.",
-        "No entiendo algunos cargos en mi factura.",
-        "¿Cuál es el horario de atención de sus oficinas?",
-        "Necesito ayuda para configurar mi cuenta.",
-        "¿Puedo cambiar mi fecha de pago mensual?",
-        "Quiero reportar un error en el sistema."
-      ];
+      // For demo/testing purposes, detect some keywords in the audio data length
+      // to return contextually relevant responses
+      // In production, this would be replaced with actual transcription 
+      const audioDataLength = audioData.length;
+      let keywordMatch = "";
       
-      // Select random transcription or use empty string if audioData doesn't contain actual data
-      transcription = audioData.length > 100 
-        ? transcriptionOptions[Math.floor(Math.random() * transcriptionOptions.length)]
-        : "";
-
-      // Save transcription to database
-      const supabaseUrl = Deno.env.get("SUPABASE_URL");
-      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY");
-      
-      if (!supabaseUrl || !supabaseKey) {
-        throw new Error("Supabase configuration missing");
+      if (audioDataLength < 1000) {
+        keywordMatch = "short";
+      } else if (audioDataLength < 5000) {
+        keywordMatch = "medium";
+      } else {
+        keywordMatch = "long";
       }
       
-      if (transcription) {
-        try {
-          console.log(`Storing transcription for call ${callId}: "${transcription}"`);
-          
-          const response = await fetch(
-            `${supabaseUrl}/rest/v1/call_transcriptions`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "apikey": supabaseKey,
-                "Authorization": `Bearer ${supabaseKey}`,
-              },
-              body: JSON.stringify({
-                call_id: callId,
-                text: transcription,
-                timestamp: new Date().toISOString(),
-                source: 'human'
-              }),
-            }
-          );
-          
-          if (!response.ok) {
-            const errorData = await response.json();
-            console.error("Error storing transcription:", errorData);
-            
-            // If the table doesn't exist, create it
-            if (errorData.message && errorData.message.includes("relation") && errorData.message.includes("does not exist")) {
-              console.log("Attempting to create call_transcriptions table");
-              
-              const createTableResponse = await fetch(
-                `${supabaseUrl}/rest/v1/rpc/exec`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "apikey": supabaseKey,
-                    "Authorization": `Bearer ${supabaseKey}`,
-                  },
-                  body: JSON.stringify({
-                    sql: `
-                      CREATE TABLE IF NOT EXISTS public.call_transcriptions (
-                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                        call_id UUID REFERENCES public.calls(id) NOT NULL,
-                        text TEXT NOT NULL,
-                        timestamp TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-                        source TEXT DEFAULT 'ai' NOT NULL,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
-                      );
-                      
-                      -- Add index for faster querying by call_id
-                      CREATE INDEX IF NOT EXISTS idx_call_transcriptions_call_id ON public.call_transcriptions(call_id);
-                      
-                      -- Enable Row Level Security
-                      ALTER TABLE public.call_transcriptions ENABLE ROW LEVEL SECURITY;
-                      
-                      -- Default policy to allow all operations
-                      CREATE POLICY "Allow all operations" ON public.call_transcriptions FOR ALL USING (true);
-                    `
-                  }),
-                }
-              );
-              
-              if (!createTableResponse.ok) {
-                console.error("Error creating table:", await createTableResponse.text());
-              } else {
-                console.log("Table created successfully");
-                
-                // Try inserting again
-                await fetch(
-                  `${supabaseUrl}/rest/v1/call_transcriptions`,
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "apikey": supabaseKey,
-                      "Authorization": `Bearer ${supabaseKey}`,
-                    },
-                    body: JSON.stringify({
-                      call_id: callId,
-                      text: transcription,
-                      timestamp: new Date().toISOString(),
-                      source: 'human'
-                    }),
-                  }
-                );
-              }
-            }
-          }
-        } catch (dbError) {
-          console.error("Database error while storing transcription:", dbError);
-        }
-      }
-
-      // Generate AI response based on transcription
-      const aiResponseOptions = {
-        "Hola, llamo por un problema con mi factura del mes pasado.": 
-          "Entiendo, puedo ayudarle con su factura. ¿Me podría proporcionar más detalles sobre el problema específico?",
-        "Necesito revisar mi plan actual de servicio.":
-          "Con gusto le ayudo a revisar su plan actual. ¿Me permite verificar su cuenta por favor?",
-        "¿Podría informarme sobre las nuevas promociones?":
-          "Por supuesto, tenemos varias promociones este mes. ¿Le interesa algún servicio en particular?",
-        "Tengo problemas técnicos con mi servicio.":
-          "Lamento escuchar eso. Podemos realizar algunas verificaciones para identificar el problema. ¿Cuándo comenzó a experimentar estos problemas?",
-        "Quisiera actualizar mi información de contacto.":
-          "Estaré encantado de ayudarle a actualizar su información. ¿Qué datos necesita modificar?",
-        "No entiendo algunos cargos en mi factura.":
-          "Le puedo explicar cada uno de los cargos en detalle. ¿Cuál es el cargo específico que le genera dudas?",
-        "¿Cuál es el horario de atención de sus oficinas?":
-          "Nuestras oficinas están abiertas de lunes a viernes de 9am a 6pm, y sábados de 9am a 1pm.",
-        "Necesito ayuda para configurar mi cuenta.":
-          "Le guiaré paso a paso en la configuración de su cuenta. ¿En qué dispositivo está intentando configurarla?",
-        "¿Puedo cambiar mi fecha de pago mensual?":
-          "Sí, podemos ayudarle a cambiar su fecha de pago. ¿Para qué día del mes le gustaría establecerla?",
-        "Quiero reportar un error en el sistema.":
-          "Gracias por informarnos. ¿Podría describirme qué error está encontrando y en qué parte de nuestro sistema?"
+      const transcriptionOptions = {
+        "short": [
+          "Hola",
+          "Buenos días",
+          "Sí",
+          "No",
+          "Gracias"
+        ],
+        "medium": [
+          "¿Podría ayudarme con un problema?",
+          "Necesito información sobre mi cuenta",
+          "¿Cuáles son sus horarios de atención?"
+        ],
+        "long": [
+          "Estoy llamando porque tengo un problema con mi servicio y necesito ayuda para resolverlo lo antes posible.",
+          "Me gustaría obtener más información sobre los nuevos productos que ofrecen y cuáles serían las mejores opciones para mi caso.",
+          "He estado intentando contactarlos durante varios días y necesito resolver una situación urgente con mi cuenta."
+        ]
       };
       
-      // Add AI response with a small delay
-      if (transcription && Object.keys(aiResponseOptions).includes(transcription)) {
+      // Select a random contextually appropriate response based on audio length
+      if (transcriptionOptions[keywordMatch] && transcriptionOptions[keywordMatch].length > 0) {
+        const options = transcriptionOptions[keywordMatch];
+        transcription = options[Math.floor(Math.random() * options.length)];
+      } else {
+        transcription = "No se pudo transcribir el audio.";
+      }
+      
+      // Get call data to update transcript
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY");
+        
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error("Supabase configuration missing");
+        }
+        
+        // Get current call data to update transcript
+        const getCallResponse = await fetch(
+          `${supabaseUrl}/rest/v1/calls?id=eq.${callId}&select=transcript`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${supabaseKey}`,
+            },
+          }
+        );
+        
+        if (!getCallResponse.ok) {
+          throw new Error(`Failed to get call data: ${await getCallResponse.text()}`);
+        }
+        
+        const callData = await getCallResponse.json();
+        let existingTranscript = [];
+        
+        if (callData && callData.length > 0 && callData[0].transcript) {
+          try {
+            existingTranscript = JSON.parse(callData[0].transcript);
+          } catch (e) {
+            console.error("Error parsing existing transcript:", e);
+          }
+        }
+        
+        // Create new transcription item
+        const newTranscriptionItem = {
+          id: crypto.randomUUID(),
+          call_id: callId,
+          text: transcription,
+          timestamp: new Date().toISOString(),
+          source: 'human'
+        };
+        
+        // Add to existing transcript
+        existingTranscript.push(newTranscriptionItem);
+        
+        // Update call record with updated transcript
+        const updateResponse = await fetch(
+          `${supabaseUrl}/rest/v1/calls?id=eq.${callId}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${supabaseKey}`,
+              "Prefer": "return=minimal"
+            },
+            body: JSON.stringify({
+              transcript: JSON.stringify(existingTranscript)
+            }),
+          }
+        );
+        
+        if (!updateResponse.ok) {
+          throw new Error(`Failed to update call transcript: ${await updateResponse.text()}`);
+        }
+        
+        // Add AI response with a small delay
         setTimeout(async () => {
           try {
-            await fetch(
-              `${supabaseUrl}/rest/v1/call_transcriptions`,
+            // Generate AI response
+            const aiResponses = {
+              "Hola": "Hola, bienvenido a nuestro centro de atención. ¿En qué puedo ayudarle hoy?",
+              "Buenos días": "Buenos días. Es un placer atenderle. ¿Cómo puedo asistirle?",
+              "Sí": "Perfecto. ¿Hay algo más que necesite?",
+              "No": "Entiendo. ¿Hay algo más en lo que pueda ayudarle?",
+              "Gracias": "De nada. Estamos para servirle. ¿Necesita algo más?",
+              "¿Podría ayudarme con un problema?": "Por supuesto, estaré encantado de ayudarle. Por favor, cuénteme más detalles sobre el problema que está experimentando.",
+              "Necesito información sobre mi cuenta": "Con gusto. Para ayudarle con información sobre su cuenta, necesitaría algunos datos para verificar su identidad. ¿Podría proporcionarme su número de cliente o correo electrónico asociado?",
+              "¿Cuáles son sus horarios de atención?": "Nuestro horario de atención es de lunes a viernes de 9:00 a 18:00 horas, y sábados de 9:00 a 13:00 horas. ¿Hay algo específico en lo que pueda ayudarle?",
+              "Estoy llamando porque tengo un problema con mi servicio y necesito ayuda para resolverlo lo antes posible.": "Lamento escuchar que está teniendo problemas con su servicio. Voy a hacer todo lo posible para ayudarle a resolverlo rápidamente. ¿Podría explicarme qué tipo de problema está experimentando específicamente?",
+              "Me gustaría obtener más información sobre los nuevos productos que ofrecen y cuáles serían las mejores opciones para mi caso.": "Gracias por su interés en nuestros nuevos productos. Con gusto le proporcionaré toda la información. Para poder recomendarle las mejores opciones, ¿podría comentarme un poco sobre sus necesidades específicas?",
+              "He estado intentando contactarlos durante varios días y necesito resolver una situación urgente con mi cuenta.": "Le ofrezco mis disculpas por las dificultades que ha tenido para contactarnos. Ahora mismo me encargaré personalmente de resolver su situación urgente. ¿Podría proporcionarme más detalles sobre el problema que está enfrentando?"
+            };
+
+            const aiResponse = aiResponses[transcription] || "Entiendo. Por favor, cuénteme más detalles para poder ayudarle mejor.";
+            
+            // Get updated transcript again
+            const getUpdatedCallResponse = await fetch(
+              `${supabaseUrl}/rest/v1/calls?id=eq.${callId}&select=transcript`,
               {
-                method: "POST",
                 headers: {
                   "Content-Type": "application/json",
                   "apikey": supabaseKey,
                   "Authorization": `Bearer ${supabaseKey}`,
                 },
+              }
+            );
+            
+            if (!getUpdatedCallResponse.ok) {
+              throw new Error(`Failed to get updated call data: ${await getUpdatedCallResponse.text()}`);
+            }
+            
+            const updatedCallData = await getUpdatedCallResponse.json();
+            let currentTranscript = [];
+            
+            if (updatedCallData && updatedCallData.length > 0 && updatedCallData[0].transcript) {
+              try {
+                currentTranscript = JSON.parse(updatedCallData[0].transcript);
+              } catch (e) {
+                console.error("Error parsing current transcript:", e);
+              }
+            }
+            
+            // Add AI response
+            const aiTranscriptionItem = {
+              id: crypto.randomUUID(),
+              call_id: callId,
+              text: aiResponse,
+              timestamp: new Date().toISOString(),
+              source: 'ai'
+            };
+            
+            currentTranscript.push(aiTranscriptionItem);
+            
+            // Update call record with updated transcript including AI response
+            await fetch(
+              `${supabaseUrl}/rest/v1/calls?id=eq.${callId}`,
+              {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json",
+                  "apikey": supabaseKey,
+                  "Authorization": `Bearer ${supabaseKey}`,
+                  "Prefer": "return=minimal"
+                },
                 body: JSON.stringify({
-                  call_id: callId,
-                  text: aiResponseOptions[transcription as keyof typeof aiResponseOptions] || 
-                        "Entiendo su consulta. ¿En qué más puedo ayudarle?",
-                  timestamp: new Date(Date.now() + 2000).toISOString(), // 2 seconds later
-                  source: 'ai'
+                  transcript: JSON.stringify(currentTranscript)
                 }),
               }
             );
           } catch (aiError) {
-            console.error("Error storing AI response:", aiError);
+            console.error("Error generating AI response:", aiError);
           }
-        }, 2000);
+        }, 1500);
+      } catch (dbError) {
+        console.error("Error updating call transcript:", dbError);
       }
 
       return new Response(

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import ActiveCallsList from '@/components/calls/ActiveCallsList';
@@ -70,37 +71,36 @@ const CallsPage: React.FC = () => {
         )}
         
         <div className="grid gap-6 grid-cols-1">
-          {/* Call Maker and Stats Section */}
+          {/* Call Maker and Stats Section - Adjusted layout */}
           <div className="grid gap-6 grid-cols-1 lg:grid-cols-12">
-            <CallMaker />
+            <div className="lg:col-span-5">
+              <CallMaker />
+            </div>
             
-            <Card className="lg:col-span-9">
-              <CardHeader>
+            <Card className="lg:col-span-7">
+              <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2">
                   <BarChart2 className="h-5 w-5 text-primary" />
-                  <span>Estadísticas del Centro de Llamadas</span>
+                  <span>Estadísticas</span>
                 </CardTitle>
-                <CardDescription>
-                  Métricas en tiempo real de su centro de contacto
-                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4 flex flex-col items-center justify-center">
-                    <span className="text-sm text-muted-foreground mb-1">Llamadas Activas</span>
-                    <span className="text-3xl font-bold text-green-600 dark:text-green-400">{isLoadingActiveCalls ? "..." : activeCalls?.length || 0}</span>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-3 flex flex-col items-center justify-center">
+                    <span className="text-xs text-muted-foreground mb-1">Activas</span>
+                    <span className="text-2xl font-bold text-green-600 dark:text-green-400">{isLoadingActiveCalls ? "..." : activeCalls?.length || 0}</span>
                   </div>
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 flex flex-col items-center justify-center">
-                    <span className="text-sm text-muted-foreground mb-1">En Cola</span>
-                    <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">0</span>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-3 flex flex-col items-center justify-center">
+                    <span className="text-xs text-muted-foreground mb-1">En Cola</span>
+                    <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">0</span>
                   </div>
-                  <div className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-lg p-4 flex flex-col items-center justify-center">
-                    <span className="text-sm text-muted-foreground mb-1">Tiempo de Espera</span>
-                    <span className="text-3xl font-bold text-amber-600 dark:text-amber-400">0:42</span>
+                  <div className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-lg p-3 flex flex-col items-center justify-center">
+                    <span className="text-xs text-muted-foreground mb-1">T. Espera</span>
+                    <span className="text-2xl font-bold text-amber-600 dark:text-amber-400">0:42</span>
                   </div>
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-4 flex flex-col items-center justify-center">
-                    <span className="text-sm text-muted-foreground mb-1">Satisfacción</span>
-                    <span className="text-3xl font-bold text-purple-600 dark:text-purple-400">96%</span>
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-3 flex flex-col items-center justify-center">
+                    <span className="text-xs text-muted-foreground mb-1">Satisfacción</span>
+                    <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">96%</span>
                   </div>
                 </div>
               </CardContent>

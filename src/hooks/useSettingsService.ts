@@ -74,6 +74,53 @@ export const useSettingsService = () => {
     }
   });
 
+  const testWebhook = async (url: string, eventType: string = 'test') => {
+    try {
+      if (!url) {
+        throw new Error('URL de webhook no especificada');
+      }
+      
+      // Test payload
+      const testPayload = {
+        event: eventType,
+        timestamp: new Date().toISOString(),
+        test: true,
+        data: {
+          id: 'test-id',
+          type: eventType,
+          description: 'Esto es una prueba de webhook'
+        }
+      };
+      
+      // Use no-cors mode to avoid CORS issues when testing
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        mode: 'no-cors',
+        body: JSON.stringify(testPayload)
+      });
+      
+      // Since we're using no-cors, we can't check the actual response
+      // So we just assume it worked if no exception was thrown
+      toast({
+        title: 'Webhook probado',
+        description: 'Se ha enviado un evento de prueba al webhook'
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error testing webhook:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo probar el webhook',
+        variant: 'destructive'
+      });
+      return false;
+    }
+  };
+
   const testApiConnection = async () => {
     try {
       // Simulate API test
@@ -126,6 +173,7 @@ export const useSettingsService = () => {
     isLoadingSettings,
     updateSettings,
     testApiConnection,
-    testTwilioConnection
+    testTwilioConnection,
+    testWebhook
   };
 };
