@@ -1,4 +1,20 @@
+
 import React from 'react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+// Define the Country interface
+interface Country {
+  code: string;
+  flag: string;
+  name: string;
+  dial_code: string;
+}
 
 export interface CountryCodeSelectProps {
   selectedCode: string;
