@@ -17,100 +17,133 @@ const AudioNotification: React.FC<AudioNotificationProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [audioLoaded, setAudioLoaded] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [fallbackTriggered, setFallbackTriggered] = useState(false);
 
-  // Initialize audio element on component mount
+  // Lista de fuentes de audio de fallback
+  const fallbackSources = [
+    '/sounds/incoming-call.mp3',
+    '/audio/ringtone.mp3',
+    'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU' // Beep básico
+  ];
+
+  // Inicializar elemento de audio en el montaje del componente
   useEffect(() => {
+    let cleanupFunction = () => {};
+    
     try {
-      // Create audio element
+      // Crear elemento de audio
       const audio = new Audio();
       audio.preload = 'auto';
       audio.loop = loop;
       audio.volume = volume;
       
-      // Add event listeners
-      audio.addEventListener('canplaythrough', () => {
+      // Agregar event listeners
+      const handleCanPlay = () => {
+        console.log('Audio cargado y listo para reproducir:', audio.src);
         setAudioLoaded(true);
         setAudioError(null);
-        console.log('Audio loaded and ready to play');
-      });
+      };
       
-      audio.addEventListener('error', (e) => {
-        console.error('Error loading audio:', e);
-        setAudioError(`Failed to load audio: ${e.type}`);
+      const handleError = (e: Event) => {
+        const error = e as ErrorEvent;
+        console.error('Error cargando audio:', error);
+        setAudioError(`Error al cargar audio: ${error.type || 'desconocido'}`);
         setAudioLoaded(false);
-      });
+        
+        // Intentar con la siguiente fuente de fallback si aún no se ha activado
+        if (!fallbackTriggered) {
+          setFallbackTriggered(true);
+          const currentIndex = fallbackSources.findIndex(src => src === audio.src);
+          if (currentIndex >= 0 && currentIndex < fallbackSources.length - 1) {
+            const nextSource = fallbackSources[currentIndex + 1];
+            console.log(`Intentando con fuente de audio alternativa: ${nextSource}`);
+            audio.src = nextSource;
+          }
+        }
+      };
       
-      // Assign audio source - ensure it's a valid URL 
-      // Fixing the issue with the previous audio file not found
+      audio.addEventListener('canplaythrough', handleCanPlay);
+      audio.addEventListener('error', handleError);
+      
+      // Asignar fuente de audio - asegurar que sea una URL válida
       let validAudioSrc = audioSrc;
-      if (!validAudioSrc.startsWith('http') && !validAudioSrc.startsWith('/')) {
+      if (!validAudioSrc.startsWith('http') && !validAudioSrc.startsWith('/') && !validAudioSrc.startsWith('data:')) {
         validAudioSrc = `/${validAudioSrc}`;
       }
       
-      // Use a fallback sound if the original isn't available
+      // Usar la fuente original primero
       audio.src = validAudioSrc;
       
-      // Store audio reference
+      // Almacenar referencia de audio
       audioRef.current = audio;
       
-      return () => {
-        // Clean up
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.src = '';
+      cleanupFunction = () => {
+        // Limpiar
+        if (audio) {
+          audio.pause();
+          audio.src = '';
           
-          audioRef.current.removeEventListener('canplaythrough', () => {});
-          audioRef.current.removeEventListener('error', () => {});
+          audio.removeEventListener('canplaythrough', handleCanPlay);
+          audio.removeEventListener('error', handleError);
         }
       };
     } catch (error) {
-      console.error('Error creating audio element:', error);
-      setAudioError('Failed to create audio element');
+      console.error('Error creando elemento de audio:', error);
+      setAudioError('Error al crear elemento de audio');
     }
+    
+    return cleanupFunction;
   }, [audioSrc, loop, volume]);
 
-  // Handle play/pause based on prop changes
+  // Manejar reproducción/pausa basado en cambios de props
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     if (play) {
       try {
+        console.log('Intentando reproducir audio:', audio.src);
         const playPromise = audio.play();
         
         if (playPromise !== undefined) {
           playPromise.catch((error) => {
-            // Auto-play was prevented
-            console.error('Error playing audio:', error);
+            // Auto-play fue prevenido
+            console.error('Error reproduciendo audio:', error);
             
-            // Handle errors differently based on error type
+            // Manejar errores de manera diferente según el tipo
             if (error.name === "NotAllowedError") {
-              setAudioError('Auto-play prevented by browser. User interaction required.');
+              setAudioError('Reproducción automática bloqueada por el navegador. Se requiere interacción del usuario.');
             } else if (error.name === "NotSupportedError") {
-              setAudioError('Audio format not supported by browser.');
+              setAudioError('Formato de audio no soportado por el navegador.');
+              // Intentar con una fuente alternativa
+              if (!fallbackTriggered) {
+                setFallbackTriggered(true);
+                audio.src = fallbackSources[0];
+                audio.play().catch(err => console.error('Error con fuente alternativa:', err));
+              }
             } else {
-              setAudioError(`Error playing audio: ${error.message}`);
+              setAudioError(`Error reproduciendo audio: ${error.message}`);
             }
           });
         }
       } catch (error) {
-        console.error('Error playing audio:', error);
+        console.error('Error reproduciendo audio:', error);
       }
     } else {
       try {
         audio.pause();
         
-        // Reset playback position if needed
+        // Resetear posición de reproducción si es necesario
         if (!loop) {
           audio.currentTime = 0;
         }
       } catch (error) {
-        console.error('Error pausing audio:', error);
+        console.error('Error pausando audio:', error);
       }
     }
-  }, [play, loop]);
+  }, [play, loop, fallbackTriggered]);
 
-  // This component doesn't render anything visible
+  // Este componente no renderiza nada visible
   return null;
 };
 
