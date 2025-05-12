@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -62,7 +61,14 @@ export const useCallMutations = () => {
           start_time: callData.start_time,
           ai_agent_id: callData.ai_agent_id || null,
           human_agent_id: callData.human_agent_id || null,
-          twilio_call_sid: twilioData?.callSid || null
+          twilio_call_sid: twilioData?.callSid || null,
+          transcript: JSON.stringify([{
+            id: crypto.randomUUID(),
+            call_id: 'pending',
+            text: 'Llamada iniciada. Presiona el botón de grabar para comenzar la transcripción.',
+            timestamp: new Date().toISOString(),
+            source: 'ai'
+          }])
         };
 
         const { data, error } = await supabase
@@ -154,8 +160,7 @@ export const useCallMutations = () => {
           .from('calls')
           .update({
             status: 'completed',
-            end_time: new Date().toISOString(),
-            duration: 300 // Duración estimada si no se puede calcular exactamente
+            end_time: new Date().toISOString()
           })
           .eq('id', callId)
           .select()

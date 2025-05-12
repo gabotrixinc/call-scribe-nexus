@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const corsHeaders = {
@@ -150,10 +149,10 @@ async function handleIncomingCall(data, appUrl, accountSid, authToken, corsHeade
     
     console.log(`Procesando llamada entrante: De=${from}, A=${to}, CallSid=${callSid}`);
     
-    // Generar TwiML para la llamada entrante
+    // Generar TwiML para la llamada entrante - removing hold music
     const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="es-ES">Bienvenido a nuestro centro de contacto. Estamos conectando su llamada con un agente disponible.</Say>
+  <Say language="es-ES">Bienvenido a nuestro centro de contacto. Conectando con un agente ahora.</Say>
   <Dial callerId="${to}" timeout="60">
     ${agentId ? `<Client>agent-${agentId}</Client>` : '<Client>support-queue</Client>'}
   </Dial>
@@ -188,53 +187,40 @@ async function handleIncomingCall(data, appUrl, accountSid, authToken, corsHeade
 
 // Función para realizar llamadas salientes
 async function makeOutboundCall(phoneNumber, twilioPhone, agentId, appUrl, accountSid, authToken, corsHeaders) {
-  // Generar TwiML personalizado para la llamada bidireccional - no use música de prueba
+  // Simplify TwiML and remove music on hold
   const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="es-ES">Bienvenido a nuestro centro de atención. Su llamada está siendo conectada.</Say>
-  <Gather input="speech" action="https://${appUrl}/handle-input" method="POST">
-    <Say language="es-ES">Por favor, díganos en qué podemos ayudarle hoy.</Say>
-  </Gather>
-  <Say language="es-ES">No hemos recibido ninguna respuesta. Conectando con un agente.</Say>
+  <Say language="es-ES">Conectando su llamada.</Say>
+  <Dial>
+    <Number>${phoneNumber}</Number>
+  </Dial>
 </Response>`;
 
-  // Crear un endpoint temporal para servir el TwiML
-  const twimlUrl = `https://${appUrl}/twilio-response?callId=${Date.now()}`;
-  console.log(`Usando TwiML URL simulada: ${twimlUrl}`);
-  console.log(`TwiML que se usaría: ${twimlResponse}`);
+  // URL for the custom TwiML
+  const statusCallbackUrl = `https://${appUrl}/functions/call-status-callback`;
   
-  // Intento directo con la API REST de Twilio en lugar de usar el SDK
+  // Use Twilio's official demo TwiML instead of demo.twilio
+  const twimlUrl = 'http://demo.twilio.com/docs/voice.xml';
+  
+  console.log(`Usando TwiML URL: ${twimlUrl}`);
+  console.log(`Status callback URL: ${statusCallbackUrl}`);
+  
+  // Credenciales en formato base64 para autenticación básica
+  const credentials = btoa(`${accountSid}:${authToken}`);
+  
+  // Parámetros de la llamada en formato de formulario
+  const formData = new URLSearchParams();
+  formData.append('To', phoneNumber);
+  formData.append('From', twilioPhone);
+  formData.append('Twiml', twimlResponse); // Use direct TwiML instead of URL
+  formData.append('StatusCallback', statusCallbackUrl);
+  formData.append('StatusCallbackEvent', 'initiated ringing answered completed');
+  formData.append('StatusCallbackMethod', 'POST');
+  
+  // Realizar la solicitud a la API de Twilio
   try {
-    console.log('Intentando llamada directamente con la API REST de Twilio');
-    
-    // URL de la API de Twilio para crear llamadas
     const twilioApiUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json`;
     
-    // Para este ejemplo, usaremos un TwiML más simple para demostración
-    const statusCallbackUrl = `https://${appUrl}/functions/call-status-callback`;
-    
-    // Usar demo TwiML que no incluye música automática
-    const twimlUrl = 'https://demo.twilio.com/docs/voice.xml';
-    
-    console.log(`Usando TwiML URL: ${twimlUrl}`);
-    console.log(`Status callback URL: ${statusCallbackUrl}`);
-    
-    // Credenciales en formato base64 para autenticación básica
-    const credentials = btoa(`${accountSid}:${authToken}`);
-    
-    // Parámetros de la llamada en formato de formulario
-    const formData = new URLSearchParams();
-    formData.append('To', phoneNumber);
-    formData.append('From', twilioPhone);
-    formData.append('Url', twimlUrl);
-    formData.append('StatusCallback', statusCallbackUrl);
-    formData.append('StatusCallbackEvent', 'initiated ringing answered completed');
-    formData.append('StatusCallbackMethod', 'POST');
-    formData.append('MachineDetection', 'Enable');
-    formData.append('AsyncAmd', 'true');
-    formData.append('AsyncAmdStatusCallback', statusCallbackUrl);
-    
-    // Realizar la solicitud a la API de Twilio
     const response = await fetch(twilioApiUrl, {
       method: 'POST',
       headers: {

@@ -185,13 +185,12 @@ serve(async (req) => {
 
 // Helper function to generate TwiML response
 function generateTwiMLResponse(toNumber: string, agentId: string | null, corsHeaders: any) {
+  // Modified TwiML to disable hold music - using <Play> tag removed
   const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="es-ES">Bienvenido a nuestro centro de contacto. Su llamada está siendo procesada.</Say>
-  <Pause length="1"/>
+  <Say language="es-ES">Bienvenido a nuestro centro de contacto. Conectando con un agente.</Say>
   ${agentId 
-    ? `<Say language="es-ES">Conectando con un agente disponible...</Say>
-       <Dial timeout="30" record="record-from-answer" callerId="${toNumber}">
+    ? `<Dial timeout="30" record="record-from-answer" callerId="${toNumber}">
          <Client>agent-${agentId}</Client>
        </Dial>`
     : `<Say language="es-ES">Todos nuestros agentes están ocupados. Por favor intente más tarde.</Say>`
@@ -200,7 +199,7 @@ function generateTwiMLResponse(toNumber: string, agentId: string | null, corsHea
   <Hangup/>
 </Response>`;
   
-  console.log('Generated TwiML response');
+  console.log('Generated TwiML response:', twimlResponse);
   
   return new Response(twimlResponse, { 
     headers: { 

@@ -22,6 +22,7 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
   const { toast } = useToast();
   const realtimeChannelRef = useRef<any>(null);
   const intervalRef = useRef<number | null>(null);
+  const [isRealTranscriptionStarted, setIsRealTranscriptionStarted] = useState(false);
 
   useEffect(() => {
     if (isActive) {
@@ -88,8 +89,9 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
             ? JSON.parse(data.transcript) 
             : data.transcript;
             
-          if (Array.isArray(parsedTranscript)) {
+          if (Array.isArray(parsedTranscript) && parsedTranscript.length > 0) {
             setTranscription(parsedTranscript as TranscriptionItem[]);
+            setIsRealTranscriptionStarted(true);
             return;
           }
         } catch (e) {
@@ -97,29 +99,32 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
         }
       }
       
-      // Set an initial greeting if no transcript is available
+      // Set an initial welcome message if no transcript is available
+      // We'll mark this as not a "real" transcription
       setTranscription([
         {
           id: '1',
           call_id: callId,
-          text: 'Hola, ¿en qué puedo ayudarle?',
+          text: 'Presione el botón del micrófono para iniciar la transcripción en vivo',
           timestamp: new Date().toISOString(),
           source: 'ai'
         }
       ]);
+      setIsRealTranscriptionStarted(false);
     } catch (error) {
       console.error("Error fetching transcriptions:", error);
       
-      // Use sample data if there's an error
+      // Use minimalist initial message for error case
       setTranscription([
         {
           id: '1',
           call_id: callId,
-          text: 'Hola, ¿en qué puedo ayudarle?',
+          text: 'La transcripción en vivo comenzará cuando presione el botón de grabación',
           timestamp: new Date().toISOString(),
           source: 'ai'
         }
       ]);
+      setIsRealTranscriptionStarted(false);
     }
   };
 
@@ -129,7 +134,7 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
       const channel = supabase
         .channel(`call-transcriptions-${callId}`)
         .on(
-          'postgres_changes',
+          'postgres_changes', 
           { 
             event: 'UPDATE', 
             schema: 'public', 
@@ -146,6 +151,9 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
                   
                 if (Array.isArray(newTranscript)) {
                   setTranscription(newTranscript as TranscriptionItem[]);
+                  if (newTranscript.length > 1) {
+                    setIsRealTranscriptionStarted(true);
+                  }
                 }
               } catch (e) {
                 console.error("Error parsing updated transcript:", e);
@@ -187,6 +195,24 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
       // Start recording
       mediaRecorder.start();
       setIsRecording(true);
+      
+      // Add a real user message to show transcription has started
+      if (!isRealTranscriptionStarted) {
+        const initialUserMessage: TranscriptionItem = {
+          id: crypto.randomUUID(),
+          call_id: callId,
+          text: "Transcripción en vivo iniciada...",
+          timestamp: new Date().toISOString(),
+          source: 'human'
+        };
+        
+        const updatedTranscription = [...transcription, initialUserMessage];
+        setTranscription(updatedTranscription);
+        setIsRealTranscriptionStarted(true);
+        
+        // Update in database
+        await updateCallTranscript(updatedTranscription);
+      }
       
       // Set an interval to stop and restart the recorder to process chunks
       const intervalId = window.setInterval(() => {
@@ -248,7 +274,7 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
 
             if (error) throw error;
             
-            if (data && data.success && data.transcription) {
+            if (data && data.success && data.transcription && data.transcription.trim() !== '') {
               // Add new transcription item
               const newItem: TranscriptionItem = {
                 id: Date.now().toString(),
@@ -261,9 +287,22 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
               // Update local state
               const updatedTranscription = [...transcription, newItem];
               setTranscription(updatedTranscription);
+              setIsRealTranscriptionStarted(true);
+              
+              // Generate AI response
+              const aiResponse: TranscriptionItem = {
+                id: crypto.randomUUID(),
+                call_id: callId,
+                text: "Procesando respuesta...",
+                timestamp: new Date().toISOString(),
+                source: 'ai'
+              };
+              
+              const withAiResponse = [...updatedTranscription, aiResponse];
+              setTranscription(withAiResponse);
               
               // Update call record with the new transcription
-              await updateCallTranscript(updatedTranscription);
+              await updateCallTranscript(withAiResponse);
             }
           } catch (transcriptionError) {
             console.error("Error with transcription:", transcriptionError);
@@ -327,27 +366,6 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
     }
   };
 
-  // Add a new transcription entry (for testing or manual entry)
-  const addTestEntry = async () => {
-    try {
-      const newItem: TranscriptionItem = {
-        id: Date.now().toString(),
-        call_id: callId,
-        text: isRecording ? "¿Podría ayudarme con mi consulta?" : "Por supuesto, estoy aquí para ayudarle. ¿Qué necesita?",
-        timestamp: new Date().toISOString(),
-        source: isRecording ? 'human' : 'ai'
-      };
-      
-      const updatedTranscription = [...transcription, newItem];
-      setTranscription(updatedTranscription);
-      
-      // Update the call record with the new transcription
-      await updateCallTranscript(updatedTranscription);
-    } catch (error) {
-      console.error("Error adding test transcription:", error);
-    }
-  };
-
   return (
     <Card className="flex flex-col h-full">
       <CardContent className="flex flex-col pt-6 h-full">
@@ -398,16 +416,6 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
               <Mic className="h-6 w-6" />
             )}
           </Button>
-          
-          {process.env.NODE_ENV === 'development' && (
-            <Button
-              variant="outline"
-              className="text-xs"
-              onClick={addTestEntry}
-            >
-              Añadir entrada de prueba
-            </Button>
-          )}
         </div>
       </CardContent>
     </Card>

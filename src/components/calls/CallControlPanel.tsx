@@ -26,7 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import LiveTranscription from './LiveTranscription';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import AudioNotification from './AudioNotification';
 
 interface CallControlPanelProps {
@@ -57,6 +57,10 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
   const [activeTab, setActiveTab] = useState<string>("controls");
   const [isCallActive, setIsCallActive] = useState(true);
   const { toast } = useToast();
+  
+  // Use constant audio URLs
+  const [audioSrc, setAudioSrc] = useState('/sounds/incoming-call.mp3');
+  const [audioError, setAudioError] = useState<string | null>(null);
 
   // Set up interval to check if call is still active
   useEffect(() => {
@@ -112,12 +116,29 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
   useEffect(() => {
     if (isCallActive) {
       setIsRinging(true);
+      // Use a fallback audio source if the primary fails
+      setAudioSrc('/sounds/incoming-call.mp3'); 
     }
     
     return () => {
       setIsRinging(false);
     };
   }, [isCallActive]);
+
+  // Handle audio errors
+  useEffect(() => {
+    if (audioError) {
+      console.log(`Audio error detected: ${audioError}`);
+      
+      // Try fallback audio sources
+      if (audioSrc === '/sounds/incoming-call.mp3') {
+        setAudioSrc('/audio/ringtone.mp3');
+      } else if (audioSrc === '/audio/ringtone.mp3') {
+        // If both sources failed, try a simple beep sound as last resort
+        setAudioSrc('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU');
+      }
+    }
+  }, [audioError]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -206,11 +227,14 @@ const CallControlPanel: React.FC<CallControlPanelProps> = ({
 
   return (
     <>
-      <AudioNotification 
-        audioSrc="/audio/ringtone.mp3" 
-        play={isRinging} 
-        loop={true} 
-      />
+      {isRinging && (
+        <AudioNotification 
+          audioSrc={audioSrc}
+          play={isRinging} 
+          loop={true} 
+          volume={0.7}
+        />
+      )}
       
       <Card className={`shadow-md flex flex-col h-[400px] border-2 ${getCallStatusClass()}`}>
         <CardHeader className={`${isCallActive ? (isPaused ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-green-50 dark:bg-green-900/20') : 'bg-red-50 dark:bg-red-900/20'} pb-2`}>
