@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { ToastActionElement } from "@/components/ui/toast";
 import { createElement } from 'react';
+import { Button } from '@/components/ui/button';
 
 export type { Call, CallStatus } from '@/types/calls';
 
@@ -42,11 +43,15 @@ export const useCallsService = () => {
               title: "Llamada entrante",
               description: `Número: ${newCall.caller_number || 'Desconocido'}`,
               variant: "default",
-              // Create a proper React element for the action
-              action: createElement('a', {
-                href: `/calls?callId=${newCall.id}`,
-                className: "bg-primary text-primary-foreground hover:bg-primary/90 h-8 rounded-md px-3 inline-flex items-center justify-center",
-                children: "Atender"
+              // Use the Button component from shadcn/ui which is compatible with ToastActionElement
+              action: createElement(Button, {
+                asChild: true,
+                variant: "default",
+                className: "px-3",
+                children: createElement('a', {
+                  href: `/calls?callId=${newCall.id}`,
+                  children: "Atender"
+                })
               }) as ToastActionElement,
               duration: 10000,
             });
