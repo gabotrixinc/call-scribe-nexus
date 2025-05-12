@@ -26,87 +26,106 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
   const audioChunksRef = useRef<Blob[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const realtimeChannelRef = useRef<any>(null);
 
   useEffect(() => {
     if (isActive) {
-      // Cargar transcripciones existentes al activar el componente
-      const fetchTranscriptions = async () => {
-        try {
-          // Simulamos datos de transcripción ya que la tabla call_transcriptions no existe todavía
-          const mockTranscriptions: TranscriptionItem[] = [
-            {
-              id: '1',
-              text: 'Hola, ¿en qué puedo ayudarle?',
-              timestamp: new Date().toISOString(),
-              source: 'ai'
-            },
-            {
-              id: '2',
-              text: 'Necesito información sobre mi factura',
-              timestamp: new Date().toISOString(),
-              source: 'human'
-            }
-          ];
-          
-          setTranscription(mockTranscriptions);
-        } catch (error) {
-          console.error("Error fetching transcriptions:", error);
-        }
-      };
-
+      // Load existing transcriptions
       fetchTranscriptions();
+
+      // Subscribe to real-time updates for this call
+      subscribeToTranscriptions();
     } else {
-      // Si el componente se desactiva, detener la grabación
+      // Stop recording if the component becomes inactive
       if (isRecording) {
         stopRecording();
+      }
+
+      // Unsubscribe from real-time updates
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current);
       }
     }
 
     return () => {
-      // Limpiar recursos al desmontar
+      // Cleanup
       if (mediaRecorderRef.current && isRecording) {
         mediaRecorderRef.current.stop();
+      }
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current);
       }
     };
   }, [isActive, callId]);
 
   useEffect(() => {
-    // Auto-scroll al último mensaje
+    // Auto-scroll to the last message
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, [transcription]);
 
-  // Simular la llegada de transcripciones para demo
-  useEffect(() => {
-    if (!isActive || !isRecording) return;
-    
-    const interval = setInterval(() => {
-      // Simular nuevas transcripciones cada 5 segundos cuando está grabando
-      if (isRecording && !isProcessing) {
-        const mockTranscriptions = [
-          "Hola, gracias por llamar. ¿En qué puedo ayudarle?",
-          "Entiendo su problema, vamos a revisarlo.",
-          "Permítame consultar esa información en el sistema.",
-          "Su caso ha sido registrado con el número #45678.",
-          "¿Hay algo más en lo que pueda ayudarle?"
-        ];
-        
-        const randomText = mockTranscriptions[Math.floor(Math.random() * mockTranscriptions.length)];
-        
-        const newItem: TranscriptionItem = {
-          id: Date.now().toString(),
-          text: randomText,
-          timestamp: new Date().toISOString(),
-          source: Math.random() > 0.5 ? 'ai' : 'human'
-        };
-        
-        setTranscription(prev => [...prev, newItem]);
+  const fetchTranscriptions = async () => {
+    try {
+      // Check if the table exists first
+      const { data, error } = await supabase
+        .from('call_transcriptions')
+        .select('*')
+        .eq('call_id', callId)
+        .order('timestamp', { ascending: true });
+
+      if (error) {
+        if (error.message.includes('relation "call_transcriptions" does not exist')) {
+          console.log('Transcriptions table does not exist yet');
+          setTranscription([]);
+        } else {
+          throw error;
+        }
+      } else if (data && data.length > 0) {
+        setTranscription(data as TranscriptionItem[]);
+      } else {
+        // No transcriptions found for this call
+        setTranscription([]);
       }
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, [isActive, isRecording, isProcessing]);
+    } catch (error) {
+      console.error("Error fetching transcriptions:", error);
+      
+      // Use sample data if there's an error
+      setTranscription([
+        {
+          id: '1',
+          text: 'Hola, ¿en qué puedo ayudarle?',
+          timestamp: new Date().toISOString(),
+          source: 'ai'
+        }
+      ]);
+    }
+  };
+
+  const subscribeToTranscriptions = () => {
+    try {
+      const channel = supabase
+        .channel('call-transcriptions')
+        .on(
+          'postgres_changes',
+          { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'call_transcriptions',
+            filter: `call_id=eq.${callId}`
+          },
+          (payload) => {
+            const newTranscription = payload.new as TranscriptionItem;
+            setTranscription(prev => [...prev, newTranscription]);
+          }
+        )
+        .subscribe();
+
+      realtimeChannelRef.current = channel;
+    } catch (error) {
+      console.error("Error setting up realtime subscription:", error);
+    }
+  };
 
   const startRecording = async () => {
     try {
@@ -125,33 +144,51 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
       };
       
       mediaRecorder.onstop = async () => {
-        // Procesar audio cuando se detiene la grabación
+        // Process audio when recording stops
         if (audioChunksRef.current.length > 0) {
           try {
             const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
             
-            // Convertir blob a base64 para enviar al servidor
+            // Convert blob to base64 for sending to server
             const reader = new FileReader();
             reader.readAsDataURL(audioBlob);
             reader.onloadend = async () => {
               const base64data = reader.result?.toString().split(',')[1];
               
               if (base64data) {
-                // En un escenario real, enviaríamos el audio para transcripción
-                console.log("Audio grabado y listo para transcribir");
-                
-                // Simular procesamiento
-                setTimeout(() => {
+                try {
+                  // Send to edge function for transcription
+                  const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+                    body: {
+                      action: 'transcribe',
+                      callId,
+                      audioData: base64data
+                    }
+                  });
+
+                  if (error) throw error;
+                  
+                  if (data && data.success) {
+                    // Transcription is handled by the edge function
+                    // and saved to the database, which will trigger
+                    // the realtime subscription
+                    console.log("Transcription processed:", data.transcription);
+                  }
+                } catch (transcriptionError) {
+                  console.error("Error with transcription:", transcriptionError);
+                  
+                  // For development/demo: Add a simulated transcription
                   const newItem: TranscriptionItem = {
                     id: Date.now().toString(),
-                    text: "He entendido su consulta. Déjeme verificar esa información.",
+                    text: "Esto es una transcripción simulada mientras se configura el servicio de transcripción.",
                     timestamp: new Date().toISOString(),
                     source: 'human'
                   };
                   
                   setTranscription(prev => [...prev, newItem]);
-                  setIsProcessing(false);
-                }, 1500);
+                }
+                
+                setIsProcessing(false);
               }
             };
           } catch (error) {
@@ -161,8 +198,30 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
         }
       };
       
+      // Start recording and set interval to capture audio every few seconds
       mediaRecorder.start();
       setIsRecording(true);
+      
+      // Set an interval to stop and restart the recorder to process chunks
+      const intervalId = setInterval(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+          
+          setTimeout(() => {
+            if (isRecording && mediaRecorderRef.current) {
+              mediaRecorderRef.current = new MediaRecorder(stream);
+              mediaRecorderRef.current.ondataavailable = mediaRecorder.ondataavailable;
+              mediaRecorderRef.current.onstop = mediaRecorder.onstop;
+              mediaRecorderRef.current.start();
+              audioChunksRef.current = [];
+            }
+          }, 500);
+        }
+      }, 5000); // Process audio every 5 seconds
+      
+      // Store the interval ID to clear it later
+      mediaRecorderRef.current.intervalId = intervalId;
+      
       setIsProcessing(false);
       
       toast({
@@ -182,9 +241,14 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      // Clear the interval if it exists
+      if (mediaRecorderRef.current.intervalId) {
+        clearInterval(mediaRecorderRef.current.intervalId);
+      }
+      
       mediaRecorderRef.current.stop();
       
-      // Detener todos los tracks del stream
+      // Stop all tracks of the stream
       if (mediaRecorderRef.current.stream) {
         mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
       }
@@ -204,6 +268,32 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     } catch (error) {
       return "00:00:00";
+    }
+  };
+
+  // Add a new transcription entry (for testing or manual entry)
+  const addTestEntry = async () => {
+    try {
+      await supabase
+        .from('call_transcriptions')
+        .insert({
+          call_id: callId,
+          text: isRecording ? "¿Podría ayudarme con mi consulta?" : "Por supuesto, estoy aquí para ayudarle. ¿Qué necesita?",
+          timestamp: new Date().toISOString(),
+          source: isRecording ? 'human' : 'ai'
+        });
+    } catch (error) {
+      console.error("Error adding test transcription:", error);
+      
+      // Fallback - add locally if DB insertion fails
+      const newItem: TranscriptionItem = {
+        id: Date.now().toString(),
+        text: isRecording ? "¿Podría ayudarme con mi consulta?" : "Por supuesto, estoy aquí para ayudarle. ¿Qué necesita?",
+        timestamp: new Date().toISOString(),
+        source: isRecording ? 'human' : 'ai'
+      };
+      
+      setTranscription(prev => [...prev, newItem]);
     }
   };
 
@@ -242,10 +332,10 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
           )}
         </div>
 
-        <div className="flex justify-center">
+        <div className="flex justify-center gap-3">
           <Button
             variant={isRecording ? "destructive" : "default"}
-            className="rounded-full w-16 h-16 p-0"
+            className="rounded-full w-14 h-14 p-0"
             disabled={!isActive || isProcessing}
             onClick={isRecording ? stopRecording : startRecording}
           >
@@ -257,6 +347,16 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ callId, isActive 
               <Mic className="h-6 w-6" />
             )}
           </Button>
+          
+          {process.env.NODE_ENV === 'development' && (
+            <Button
+              variant="outline"
+              className="text-xs"
+              onClick={addTestEntry}
+            >
+              Añadir entrada de prueba
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

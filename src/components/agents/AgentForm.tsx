@@ -1,18 +1,16 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -20,210 +18,192 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Agent, useAgentsService } from '@/hooks/useAgentsService';
+import { Textarea } from '@/components/ui/textarea';
+import { useAgentsService, Agent } from '@/hooks/useAgentsService';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+const formSchema = z.object({
+  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  type: z.enum(['ai', 'human']),
+  status: z.enum(['available', 'busy', 'offline']),
+  specialization: z.string().optional(),
+  prompt_template: z.string().optional(),
+  voice_id: z.string().optional(),
+});
+
+type FormData = z.infer<typeof formSchema>;
 
 interface AgentFormProps {
-  open: boolean;
-  onClose: () => void;
-  editingAgent?: Agent;
+  onSuccess?: () => void;
+  initialData?: Partial<Agent>;
+  isEditing?: boolean;
 }
 
-interface AgentFormValues {
-  name: string;
-  type: 'ai' | 'human';
-  status: 'available' | 'busy' | 'offline';
-  specialization: string;
-  voice_id?: string;
-  prompt_template?: string;
-}
-
-const AgentForm: React.FC<AgentFormProps> = ({ open, onClose, editingAgent }) => {
+const AgentForm: React.FC<AgentFormProps> = ({ 
+  onSuccess, 
+  initialData = {},
+  isEditing = false
+}) => {
   const { createAgent } = useAgentsService();
-  const form = useForm<AgentFormValues>({
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      name: editingAgent?.name || '',
-      type: editingAgent?.type || 'ai',
-      status: editingAgent?.status || 'available',
-      specialization: editingAgent?.specialization || '',
-      voice_id: editingAgent?.voice_id || '',
-      prompt_template: editingAgent?.prompt_template || '',
+      name: initialData.name || '',
+      type: initialData.type || 'ai',
+      status: initialData.status as 'available' | 'busy' | 'offline' || 'available',
+      specialization: initialData.specialization || '',
+      prompt_template: initialData.prompt_template || '',
+      voice_id: initialData.voice_id || '',
     },
   });
 
-  const onSubmit = async (values: AgentFormValues) => {
+  const onSubmit = async (data: FormData) => {
     try {
+      setIsSubmitting(true);
+      
       await createAgent.mutateAsync({
-        name: values.name,
-        type: values.type,
-        status: values.status,
-        specialization: values.specialization || null,
-        voice_id: values.voice_id || null,
-        prompt_template: values.prompt_template || null,
+        name: data.name,
+        type: data.type,
+        status: data.status,
+        specialization: data.specialization,
+        prompt_template: data.prompt_template,
+        voice_id: data.voice_id,
       });
       
-      onClose();
+      if (onSuccess) {
+        onSuccess();
+      }
+      
       form.reset();
     } catch (error) {
       console.error('Error creating agent:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>
-            {editingAgent ? 'Editar agente' : 'Crear nuevo agente'}
-          </DialogTitle>
-          <DialogDescription>
-            {editingAgent
-              ? 'Actualiza los datos del agente existente'
-              : 'Ingresa la información para el nuevo agente'}
-          </DialogDescription>
-        </DialogHeader>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nombre</FormLabel>
+              <FormControl>
+                <Input placeholder="Nombre del agente" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              rules={{ required: "El nombre es obligatorio" }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nombre</FormLabel>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="type"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tipo</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                    <Input placeholder="Nombre del agente" {...field} />
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un tipo" />
+                    </SelectTrigger>
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="type"
-              rules={{ required: "El tipo es obligatorio" }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona el tipo de agente" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="ai">AI</SelectItem>
-                      <SelectItem value="human">Humano</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="status"
-              rules={{ required: "El estado es obligatorio" }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estado</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona el estado" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="available">Disponible</SelectItem>
-                      <SelectItem value="busy">Ocupado</SelectItem>
-                      <SelectItem value="offline">Desconectado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="specialization"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Especialización</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Especialización del agente" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {form.watch('type') === 'ai' && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="voice_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ID de Voz</FormLabel>
-                      <FormControl>
-                        <Input placeholder="ID de Voz (ej. en-US-Standard-F)" {...field} />
-                      </FormControl>
-                      <FormDescription>El identificador de voz para Text-to-Speech</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="prompt_template"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Plantilla de prompt</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Template para el prompt del AI" 
-                          className="min-h-[100px]" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormDescription>La plantilla para guiar las respuestas del AI</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
+                  <SelectContent>
+                    <SelectItem value="ai">IA</SelectItem>
+                    <SelectItem value="human">Humano</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
             )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Estado</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un estado" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="available">Disponible</SelectItem>
+                    <SelectItem value="busy">Ocupado</SelectItem>
+                    <SelectItem value="offline">Desconectado</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <FormField
+          control={form.control}
+          name="specialization"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Especialización</FormLabel>
+              <FormControl>
+                <Input placeholder="Especialización del agente (opcional)" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        {form.watch("type") === "ai" && (
+          <>
+            <FormField
+              control={form.control}
+              name="prompt_template"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Plantilla de Prompt</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Instrucciones para el agente de IA" 
+                      className="min-h-[100px]"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
-              </Button>
-              <Button type="submit">
-                {editingAgent ? 'Actualizar' : 'Crear'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+            <FormField
+              control={form.control}
+              name="voice_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>ID de Voz</FormLabel>
+                  <FormControl>
+                    <Input placeholder="ID de voz para TTS (opcional)" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
+        )}
+        
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? 'Guardando...' : (isEditing ? 'Actualizar Agente' : 'Crear Agente')}
+        </Button>
+      </form>
+    </Form>
   );
 };
 

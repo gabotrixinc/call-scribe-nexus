@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -31,17 +30,22 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Plus, PhoneCall, Pencil, Trash2, RefreshCw, Users } from "lucide-react";
+import { Loader2, Plus, PhoneCall, Pencil, Trash2, RefreshCw, Users, Eye } from "lucide-react";
 import { Contact } from '@/types/contacts';
+import { useContactsService } from '@/hooks/useContactsService';
+import { useRouter } from 'next/router';
+import ContactDetailsModal from '@/components/contacts/ContactDetailsModal';
+import { Label } from '@/components/ui/label';
 
 const ContactsPage: React.FC = () => {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { contacts, isLoadingContacts, createContact, updateContact, deleteContact } = useContactsService();
   const [search, setSearch] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentContact, setCurrentContact] = useState<Contact | null>(null);
+  const [viewingContact, setViewingContact] = useState<Contact | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -49,35 +53,6 @@ const ContactsPage: React.FC = () => {
     company: ''
   });
   const { toast } = useToast();
-
-  const fetchContacts = async () => {
-    setLoading(true);
-    try {
-      let { data, error } = await supabase
-        .from('contacts')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      setContacts(data as Contact[] || []);
-    } catch (error: any) {
-      console.error('Error fetching contacts:', error);
-      // Use sample data if there's an error
-      setContacts(sampleContacts);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los contactos. Usando datos locales.',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchContacts();
-  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -101,62 +76,19 @@ const ContactsPage: React.FC = () => {
     try {
       if (isEditing && currentContact) {
         // Update existing contact
-        const { error } = await supabase
-          .from('contacts')
-          .update(formData)
-          .eq('id', currentContact.id);
-          
-        if (error) throw error;
-        
-        toast({
-          title: 'Contacto actualizado',
-          description: `${formData.name} ha sido actualizado correctamente.`
+        await updateContact.mutateAsync({
+          id: currentContact.id,
+          ...formData
         });
       } else {
         // Create new contact
-        const { error } = await supabase
-          .from('contacts')
-          .insert([formData]);
-          
-        if (error) throw error;
-        
-        toast({
-          title: 'Contacto creado',
-          description: `${formData.name} ha sido agregado a tus contactos.`
-        });
+        await createContact.mutateAsync(formData);
       }
       
-      // Refresh contacts list
-      fetchContacts();
       resetForm();
       setOpenDialog(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving contact:', error);
-      
-      // Update local state for demo purposes
-      if (isEditing) {
-        setContacts(contacts.map(c => 
-          c.id === currentContact?.id ? { ...c, ...formData } as Contact : c
-        ));
-      } else {
-        const newContact = {
-          id: `temp-${Date.now()}`,
-          name: formData.name,
-          phone: formData.phone,
-          email: formData.email,
-          company: formData.company,
-          created_at: new Date().toISOString()
-        } as Contact;
-        setContacts([newContact, ...contacts]);
-      }
-      
-      toast({
-        title: isEditing ? 'Contacto actualizado' : 'Contacto creado',
-        description: 'Cambio realizado en modo local.'
-      });
-      
-      resetForm();
-      setOpenDialog(false);
     }
   };
 
@@ -174,30 +106,15 @@ const ContactsPage: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('contacts')
-        .delete()
-        .eq('id', id);
-        
-      if (error) throw error;
-      
-      setContacts(contacts.filter(c => c.id !== id));
-      
-      toast({
-        title: 'Contacto eliminado',
-        description: 'El contacto ha sido eliminado correctamente.'
-      });
-    } catch (error: any) {
+      await deleteContact.mutateAsync(id);
+    } catch (error) {
       console.error('Error deleting contact:', error);
-      
-      // Update local state for demo
-      setContacts(contacts.filter(c => c.id !== id));
-      
-      toast({
-        title: 'Contacto eliminado',
-        description: 'Eliminado en modo local.'
-      });
     }
+  };
+
+  const handleViewContact = (contact: Contact) => {
+    setViewingContact(contact);
+    setIsDetailsOpen(true);
   };
 
   const resetForm = () => {
@@ -211,7 +128,17 @@ const ContactsPage: React.FC = () => {
     });
   };
 
-  const filteredContacts = contacts.filter(contact => {
+  const makeCall = (phoneNumber: string) => {
+    toast({
+      title: 'Iniciando llamada',
+      description: `Llamando a ${phoneNumber}...`
+    });
+    
+    // Redirect to calls page with phone number
+    router.push(`/calls?phone=${encodeURIComponent(phoneNumber)}`);
+  };
+
+  const filteredContacts = (contacts || []).filter(contact => {
     const searchLower = search.toLowerCase();
     return (
       contact.name.toLowerCase().includes(searchLower) ||
@@ -220,16 +147,6 @@ const ContactsPage: React.FC = () => {
       (contact.company && contact.company.toLowerCase().includes(searchLower))
     );
   });
-
-  const makeCall = (phoneNumber: string) => {
-    toast({
-      title: 'Iniciando llamada',
-      description: `Llamando a ${phoneNumber}...`
-    });
-    
-    // Redirigir a la página de llamadas
-    window.location.href = `/calls?phone=${encodeURIComponent(phoneNumber)}`;
-  };
 
   return (
     <Layout>
@@ -240,7 +157,7 @@ const ContactsPage: React.FC = () => {
             <p className="text-muted-foreground">Administra tu directorio de contactos y realiza llamadas directamente.</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={() => fetchContacts()} variant="outline" size="icon">
+            <Button onClick={() => {}} variant="outline" size="icon">
               <RefreshCw className="h-4 w-4" />
             </Button>
             <Dialog open={openDialog} onOpenChange={setOpenDialog}>
@@ -351,141 +268,115 @@ const ContactsPage: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {isLoadingContacts ? (
               <div className="flex justify-center items-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <Table>
-                <TableCaption>Lista de contactos</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Contacto</TableHead>
-                    <TableHead>Teléfono</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>Último contacto</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredContacts.length === 0 ? (
+              <div className="rounded-md border">
+                <Table>
+                  <TableCaption>Lista de contactos</TableCaption>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
-                        <p className="text-muted-foreground">No se encontraron contactos</p>
-                        {search && (
-                          <Button 
-                            variant="link" 
-                            onClick={() => setSearch('')}
-                            className="mt-2"
-                          >
-                            Limpiar búsqueda
-                          </Button>
-                        )}
-                      </TableCell>
+                      <TableHead>Contacto</TableHead>
+                      <TableHead>Teléfono</TableHead>
+                      <TableHead className="hidden md:table-cell">Email</TableHead>
+                      <TableHead className="hidden md:table-cell">Empresa</TableHead>
+                      <TableHead className="hidden md:table-cell">Último contacto</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
-                  ) : (
-                    filteredContacts.map((contact) => (
-                      <TableRow key={contact.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar>
-                              <AvatarFallback>
-                                {contact.name.substring(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">{contact.name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{contact.phone}</TableCell>
-                        <TableCell>{contact.email || '-'}</TableCell>
-                        <TableCell>{contact.company || '-'}</TableCell>
-                        <TableCell>
-                          {contact.last_contact ? new Date(contact.last_contact).toLocaleDateString() : 'Nunca'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              onClick={() => makeCall(contact.phone)}
-                              size="icon"
-                              variant="ghost"
-                              title="Llamar"
+                  </TableHeader>
+                  <TableBody>
+                    {filteredContacts.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          <p className="text-muted-foreground">No se encontraron contactos</p>
+                          {search && (
+                            <Button 
+                              variant="link" 
+                              onClick={() => setSearch('')}
+                              className="mt-2"
                             >
-                              <PhoneCall className="h-4 w-4" />
+                              Limpiar búsqueda
                             </Button>
-                            <Button
-                              onClick={() => handleEdit(contact)}
-                              size="icon"
-                              variant="ghost"
-                              title="Editar"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              onClick={() => handleDelete(contact.id)}
-                              size="icon"
-                              variant="ghost"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
+                          )}
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      filteredContacts.map((contact) => (
+                        <TableRow key={contact.id} className="hover:bg-muted/50 cursor-pointer">
+                          <TableCell className="font-medium" onClick={() => handleViewContact(contact)}>
+                            <div className="flex items-center gap-3">
+                              <Avatar>
+                                <AvatarFallback className="bg-primary/10 text-primary">
+                                  {contact.name.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{contact.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell onClick={() => handleViewContact(contact)}>{contact.phone}</TableCell>
+                          <TableCell className="hidden md:table-cell" onClick={() => handleViewContact(contact)}>{contact.email || '-'}</TableCell>
+                          <TableCell className="hidden md:table-cell" onClick={() => handleViewContact(contact)}>{contact.company || '-'}</TableCell>
+                          <TableCell className="hidden md:table-cell" onClick={() => handleViewContact(contact)}>
+                            {contact.last_contact ? new Date(contact.last_contact).toLocaleDateString() : 'Nunca'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                onClick={() => handleViewContact(contact)}
+                                size="icon"
+                                variant="ghost"
+                                title="Ver detalles"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                onClick={() => makeCall(contact.phone)}
+                                size="icon"
+                                variant="ghost"
+                                title="Llamar"
+                              >
+                                <PhoneCall className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                onClick={() => handleEdit(contact)}
+                                size="icon"
+                                variant="ghost"
+                                title="Editar"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                onClick={() => handleDelete(contact.id)}
+                                size="icon"
+                                variant="ghost"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
+        
+        <ContactDetailsModal
+          contact={viewingContact}
+          isOpen={isDetailsOpen}
+          onClose={() => setIsDetailsOpen(false)}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
       </div>
     </Layout>
   );
 };
-
-// Sample contacts data for offline/demo mode
-const sampleContacts: Contact[] = [
-  {
-    id: '1',
-    name: 'Juan Pérez',
-    phone: '+34612345678',
-    email: 'juan@empresa.com',
-    company: 'Empresa ABC',
-    last_contact: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '2',
-    name: 'María López',
-    phone: '+34623456789',
-    email: 'maria@outlook.com',
-    created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '3',
-    name: 'Carlos Rodríguez',
-    phone: '+34634567890',
-    company: 'Consultores XYZ',
-    last_contact: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '4',
-    name: 'Ana Martínez',
-    phone: '+34645678901',
-    email: 'ana.martinez@gmail.com',
-    company: 'Distribuciones Rápidas',
-    created_at: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '5',
-    name: 'Roberto Fernández',
-    phone: '+34656789012',
-    email: 'roberto@empresa.net',
-    last_contact: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    created_at: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
-  }
-];
 
 export default ContactsPage;

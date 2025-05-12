@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const corsHeaders = {
@@ -187,21 +188,14 @@ async function handleIncomingCall(data, appUrl, accountSid, authToken, corsHeade
 
 // Función para realizar llamadas salientes
 async function makeOutboundCall(phoneNumber, twilioPhone, agentId, appUrl, accountSid, authToken, corsHeaders) {
-  // Generar TwiML personalizado para la llamada bidireccional
+  // Generar TwiML personalizado para la llamada bidireccional - no use música de prueba
   const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say language="es-ES">Bienvenido a nuestro centro de atención. Su llamada está siendo conectada.</Say>
-  <Connect>
-    <Stream url="wss://${appUrl}/stream-audio">
-      <Parameter name="callId" value="{{CALL_SID}}"/>
-      <Parameter name="agentId" value="${agentId || 'no-agent'}"/>
-    </Stream>
-  </Connect>
-  <Dial callerId="${twilioPhone}" timeout="30" record="record-from-answer">
-    <Client>agent-${agentId || 'default'}</Client>
-  </Dial>
-  <Pause length="1"/>
-  <Say language="es-ES">No hay agentes disponibles en este momento. La llamada se finalizará.</Say>
+  <Gather input="speech" action="https://${appUrl}/handle-input" method="POST">
+    <Say language="es-ES">Por favor, díganos en qué podemos ayudarle hoy.</Say>
+  </Gather>
+  <Say language="es-ES">No hemos recibido ninguna respuesta. Conectando con un agente.</Say>
 </Response>`;
 
   // Crear un endpoint temporal para servir el TwiML
@@ -216,9 +210,12 @@ async function makeOutboundCall(phoneNumber, twilioPhone, agentId, appUrl, accou
     // URL de la API de Twilio para crear llamadas
     const twilioApiUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json`;
     
-    // Para este ejemplo, usaremos un TwiML más avanzado que incluya control de música y eventos de fin de llamada
-    const twimlUrl = 'http://demo.twilio.com/docs/voice.xml';
+    // Para este ejemplo, usaremos un TwiML más simple para demostración
     const statusCallbackUrl = `https://${appUrl}/functions/call-status-callback`;
+    
+    // Usar demo TwiML que no incluye música automática
+    const twimlUrl = 'https://demo.twilio.com/docs/voice.xml';
+    
     console.log(`Usando TwiML URL: ${twimlUrl}`);
     console.log(`Status callback URL: ${statusCallbackUrl}`);
     
