@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import ActiveCallsList from '@/components/calls/ActiveCallsList';
@@ -18,22 +17,24 @@ import { useCallsService } from '@/hooks/useCallsService';
 import CallControlPanel from '@/components/calls/CallControlPanel';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/router';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const CallsPage: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { activeCalls, isLoadingActiveCalls } = useCallsService();
   const [selectedTab, setSelectedTab] = useState<string>('active');
   const [showSettings, setShowSettings] = useState(false);
 
   // Get phone number from URL parameters (if coming from contacts)
   useEffect(() => {
-    const phoneFromUrl = router.query.phone as string;
+    const params = new URLSearchParams(location.search);
+    const phoneFromUrl = params.get('phone');
     if (phoneFromUrl) {
       // Here we could auto-populate the phone number in the call maker
       console.log("Phone from URL:", phoneFromUrl);
     }
-  }, [router.query]);
+  }, [location.search]);
 
   // Filter active calls for display
   const activeCallsForDisplay = activeCalls?.slice(0, 3) || [];

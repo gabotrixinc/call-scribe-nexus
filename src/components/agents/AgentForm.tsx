@@ -1,209 +1,192 @@
-
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect } from 'react';
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useAgentsService, Agent } from '@/hooks/useAgentsService';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
+import { useAgentsService } from '@/hooks/useAgentsService';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const formSchema = z.object({
-  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  type: z.enum(['ai', 'human']),
-  status: z.enum(['available', 'busy', 'offline']),
-  specialization: z.string().optional(),
-  prompt_template: z.string().optional(),
-  voice_id: z.string().optional(),
-});
-
-type FormData = z.infer<typeof formSchema>;
-
-interface AgentFormProps {
-  onSuccess?: () => void;
-  initialData?: Partial<Agent>;
-  isEditing?: boolean;
+// Add the necessary props interface
+export interface AgentFormProps {
+  open: boolean;
+  onClose: () => void;
 }
 
-const AgentForm: React.FC<AgentFormProps> = ({ 
-  onSuccess, 
-  initialData = {},
-  isEditing = false
-}) => {
+const AgentForm: React.FC<AgentFormProps> = ({ open, onClose }) => {
   const { createAgent } = useAgentsService();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: initialData.name || '',
-      type: initialData.type || 'ai',
-      status: initialData.status as 'available' | 'busy' | 'offline' || 'available',
-      specialization: initialData.specialization || '',
-      prompt_template: initialData.prompt_template || '',
-      voice_id: initialData.voice_id || '',
-    },
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'ai',
+    status: 'available',
+    specialization: '',
+    voice_id: '',
+    prompt_template: ''
   });
 
-  const onSubmit = async (data: FormData) => {
-    try {
-      setIsSubmitting(true);
-      
-      await createAgent.mutateAsync({
-        name: data.name,
-        type: data.type,
-        status: data.status,
-        specialization: data.specialization,
-        prompt_template: data.prompt_template,
-        voice_id: data.voice_id,
-      });
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-      
-      form.reset();
-    } catch (error) {
-      console.error('Error creating agent:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
   };
 
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name) {
+      toast({
+        title: 'Error',
+        description: 'El nombre es obligatorio',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    try {
+      await createAgent.mutateAsync(formData);
+      onClose();
+    } catch (error) {
+      console.error('Error creating agent:', error);
+    }
+  };
+  
+  useEffect(() => {
+    // Reset form when dialog opens
+    if (open) {
+      setFormData({
+        name: '',
+        type: 'ai',
+        status: 'available',
+        specialization: '',
+        voice_id: '',
+        prompt_template: ''
+      });
+    }
+  }, [open]);
+
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nombre</FormLabel>
-              <FormControl>
-                <Input placeholder="Nombre del agente" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tipo</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un tipo" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="ai">IA</SelectItem>
-                    <SelectItem value="human">Humano</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Estado</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un estado" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="available">Disponible</SelectItem>
-                    <SelectItem value="busy">Ocupado</SelectItem>
-                    <SelectItem value="offline">Desconectado</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        
-        <FormField
-          control={form.control}
-          name="specialization"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Especialización</FormLabel>
-              <FormControl>
-                <Input placeholder="Especialización del agente (opcional)" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        {form.watch("type") === "ai" && (
-          <>
-            <FormField
-              control={form.control}
-              name="prompt_template"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Plantilla de Prompt</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Instrucciones para el agente de IA" 
-                      className="min-h-[100px]"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nuevo Agente</DialogTitle>
+          <DialogDescription>
+            Crea un nuevo agente para tu centro de contacto.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Nombre
+              </Label>
+              <Input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                className="col-span-3"
+                required
+              />
+            </div>
             
-            <FormField
-              control={form.control}
-              name="voice_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>ID de Voz</FormLabel>
-                  <FormControl>
-                    <Input placeholder="ID de voz para TTS (opcional)" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
-        )}
-        
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? 'Guardando...' : (isEditing ? 'Actualizar Agente' : 'Crear Agente')}
-        </Button>
-      </form>
-    </Form>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="type" className="text-right">
+                Tipo
+              </Label>
+              <Select onValueChange={(value) => handleSelectChange('type', value)}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Selecciona un tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ai">AI</SelectItem>
+                  <SelectItem value="human">Humano</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="status" className="text-right">
+                Estado
+              </Label>
+              <Select onValueChange={(value) => handleSelectChange('status', value)}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Selecciona un estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Disponible</SelectItem>
+                  <SelectItem value="busy">Ocupado</SelectItem>
+                  <SelectItem value="offline">Desconectado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="specialization" className="text-right">
+                Especialización
+              </Label>
+              <Input
+                type="text"
+                id="specialization"
+                name="specialization"
+                value={formData.specialization}
+                onChange={handleInputChange}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="voice_id" className="text-right">
+                ID de Voz
+              </Label>
+              <Input
+                type="text"
+                id="voice_id"
+                name="voice_id"
+                value={formData.voice_id}
+                onChange={handleInputChange}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="prompt_template" className="text-right mt-1">
+                Prompt Template
+              </Label>
+              <Input
+                id="prompt_template"
+                name="prompt_template"
+                value={formData.prompt_template}
+                onChange={handleInputChange}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit">Crear Agente</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

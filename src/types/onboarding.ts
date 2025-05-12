@@ -15,7 +15,7 @@ export interface OnboardingProgress {
 export interface AgentConfig {
   name: string;
   type: 'ai' | 'human';
-  // Los valores correctos de status según el esquema de la tabla agents son:
+  // Update the status type to match what's used in the database
   status: 'online' | 'offline' | 'available' | 'busy';
   specialization?: string;
   voice_id?: string;

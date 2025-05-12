@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Card,
@@ -14,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import PhoneDialpad from './Dialpad';
 import CountryCodeSelect from './CountryCodeSelect';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 const CallMaker: React.FC = () => {
   const { startCall } = useCallsService();

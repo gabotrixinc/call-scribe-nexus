@@ -46,7 +46,7 @@ export const useOnboardingAgents = () => {
           createdAgentsArray.push({
             ...config,
             // Make sure the created agent has the status that was actually saved
-            status: result.status
+            status: result.status as 'online' | 'offline' | 'available' | 'busy'
           });
         } catch (error) {
           console.error(`Error creating agent: ${config.name}`, error);

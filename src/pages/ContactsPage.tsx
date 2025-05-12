@@ -1,6 +1,6 @@
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Layout from '@/components/Layout';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Card,
   CardContent,
@@ -33,12 +33,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, PhoneCall, Pencil, Trash2, RefreshCw, Users, Eye } from "lucide-react";
 import { Contact } from '@/types/contacts';
 import { useContactsService } from '@/hooks/useContactsService';
-import { useRouter } from 'next/router';
 import ContactDetailsModal from '@/components/contacts/ContactDetailsModal';
 import { Label } from '@/components/ui/label';
+import { useState, useEffect } from 'react';
 
 const ContactsPage: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { contacts, isLoadingContacts, createContact, updateContact, deleteContact } = useContactsService();
   const [search, setSearch] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
@@ -135,7 +136,7 @@ const ContactsPage: React.FC = () => {
     });
     
     // Redirect to calls page with phone number
-    router.push(`/calls?phone=${encodeURIComponent(phoneNumber)}`);
+    navigate(`/calls?phone=${encodeURIComponent(phoneNumber)}`);
   };
 
   const filteredContacts = (contacts || []).filter(contact => {

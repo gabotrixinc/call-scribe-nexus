@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Sparkles, ArrowRight, Bot } from 'lucide-react';
-import { useRouter } from 'next/router';
+import { useNavigate } from 'react-router-dom';
 import { AgentConfig } from '@/types/onboarding';
 
 interface OnboardingCompleteProps {
@@ -12,7 +12,7 @@ interface OnboardingCompleteProps {
 const OnboardingComplete: React.FC<OnboardingCompleteProps> = ({
   createdAgents
 }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col items-center text-center space-y-6">
@@ -38,7 +38,7 @@ const OnboardingComplete: React.FC<OnboardingCompleteProps> = ({
               createdAgents.map((agent, index) => (
                 <div key={index} className="flex items-center justify-between gap-2 p-2 bg-white dark:bg-blue-900/10 rounded">
                   <div className="flex items-center gap-2">
-                    {agent.type === 'ai' ? (
+                    {agent.type === "ai" ? (
                       <Sparkles className="h-4 w-4 text-amber-500" />
                     ) : (
                       <Bot className="h-4 w-4 text-blue-500" />
@@ -63,7 +63,7 @@ const OnboardingComplete: React.FC<OnboardingCompleteProps> = ({
             <Button 
               variant="link" 
               className="text-sm text-blue-600 dark:text-blue-400 p-0 h-auto"
-              onClick={() => router.push('/agents')}
+              onClick={() => navigate('/agents')}
             >
               Ver todos los agentes <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
@@ -75,7 +75,7 @@ const OnboardingComplete: React.FC<OnboardingCompleteProps> = ({
         <Button 
           className="w-full" 
           size="lg"
-          onClick={() => router.push('/dashboard')}
+          onClick={() => navigate('/dashboard')}
         >
           Ir al Dashboard
         </Button>
