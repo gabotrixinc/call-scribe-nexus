@@ -5,11 +5,10 @@ import { useCallMutations } from './calls/useCallMutations';
 import { useCallMetrics } from './calls/useCallMetrics';
 import { Call } from '@/types/calls';
 import { TranscriptionItem } from '@/types/transcription';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import React from 'react';
 
 export type { Call, CallStatus } from '@/types/calls';
 
