@@ -8,6 +8,8 @@ import { TranscriptionItem } from '@/types/transcription';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { ToastActionElement } from "@/components/ui/toast";
+import { createElement } from 'react';
 
 export type { Call, CallStatus } from '@/types/calls';
 
@@ -40,18 +42,12 @@ export const useCallsService = () => {
               title: "Llamada entrante",
               description: `Número: ${newCall.caller_number || 'Desconocido'}`,
               variant: "default",
-              // Use a function that returns JSX instead of direct JSX
-              action: function ToastAction() {
-                return {
-                  // Using createElement to avoid JSX in .ts file
-                  type: 'a',
-                  props: {
-                    href: `/calls?callId=${newCall.id}`,
-                    className: "bg-primary text-primary-foreground hover:bg-primary/90 h-8 rounded-md px-3 inline-flex items-center justify-center",
-                    children: "Atender"
-                  }
-                };
-              },
+              // Create a proper React element for the action
+              action: createElement('a', {
+                href: `/calls?callId=${newCall.id}`,
+                className: "bg-primary text-primary-foreground hover:bg-primary/90 h-8 rounded-md px-3 inline-flex items-center justify-center",
+                children: "Atender"
+              }) as ToastActionElement,
               duration: 10000,
             });
             
