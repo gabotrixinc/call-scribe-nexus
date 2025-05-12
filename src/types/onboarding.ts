@@ -16,7 +16,7 @@ export interface AgentConfig {
   name: string;
   type: 'ai' | 'human';
   // Update the status type to match what's used in the database
-  status: 'online' | 'offline' | 'available' | 'busy';
+  status: 'available' | 'busy' | 'offline' | 'online';
   specialization?: string;
   voice_id?: string;
   prompt_template?: string;

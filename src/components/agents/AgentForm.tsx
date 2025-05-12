@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -11,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { useAgentsService } from '@/hooks/useAgentsService';
+import { useAgentsService, Agent } from '@/hooks/useAgentsService';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Add the necessary props interface
@@ -20,10 +21,19 @@ export interface AgentFormProps {
   onClose: () => void;
 }
 
+type AgentFormData = {
+  name: string;
+  type: 'ai' | 'human';
+  status: 'available' | 'busy' | 'offline' | 'online';
+  specialization: string;
+  voice_id: string;
+  prompt_template: string;
+};
+
 const AgentForm: React.FC<AgentFormProps> = ({ open, onClose }) => {
   const { createAgent } = useAgentsService();
   const { toast } = useToast();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<AgentFormData>({
     name: '',
     type: 'ai',
     status: 'available',
@@ -110,7 +120,9 @@ const AgentForm: React.FC<AgentFormProps> = ({ open, onClose }) => {
               <Label htmlFor="type" className="text-right">
                 Tipo
               </Label>
-              <Select onValueChange={(value) => handleSelectChange('type', value)}>
+              <Select 
+                value={formData.type} 
+                onValueChange={(value) => handleSelectChange('type', value)}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Selecciona un tipo" />
                 </SelectTrigger>
@@ -125,7 +137,9 @@ const AgentForm: React.FC<AgentFormProps> = ({ open, onClose }) => {
               <Label htmlFor="status" className="text-right">
                 Estado
               </Label>
-              <Select onValueChange={(value) => handleSelectChange('status', value)}>
+              <Select 
+                value={formData.status} 
+                onValueChange={(value) => handleSelectChange('status', value as 'available' | 'busy' | 'offline' | 'online')}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Selecciona un estado" />
                 </SelectTrigger>
