@@ -40,14 +40,18 @@ export const useCallsService = () => {
               title: "Llamada entrante",
               description: `Número: ${newCall.caller_number || 'Desconocido'}`,
               variant: "default",
-              action: (
-                <a 
-                  href={`/calls?callId=${newCall.id}`} 
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 rounded-md px-3 inline-flex items-center justify-center"
-                >
-                  Atender
-                </a>
-              ),
+              // Use a function that returns JSX instead of direct JSX
+              action: function ToastAction() {
+                return {
+                  // Using createElement to avoid JSX in .ts file
+                  type: 'a',
+                  props: {
+                    href: `/calls?callId=${newCall.id}`,
+                    className: "bg-primary text-primary-foreground hover:bg-primary/90 h-8 rounded-md px-3 inline-flex items-center justify-center",
+                    children: "Atender"
+                  }
+                };
+              },
               duration: 10000,
             });
             
