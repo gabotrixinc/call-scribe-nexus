@@ -2,7 +2,9 @@
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import TemplateManager from '@/components/messaging/TemplateManager';
+import WhatsappConfiguration from '@/components/messaging/WhatsappConfiguration';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import ConversationsList from '@/components/messaging/ConversationsList';
 
 const MessagingPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('conversations');
@@ -30,12 +32,7 @@ const MessagingPage: React.FC = () => {
           </TabsList>
           
           <TabsContent value="conversations" className="space-y-4">
-            <div className="flex flex-col items-center justify-center h-[60vh] bg-muted/30 rounded-lg border border-dashed">
-              <h3 className="text-2xl font-semibold mb-2">Centro de conversaciones</h3>
-              <p className="text-muted-foreground mb-4 text-center max-w-md">
-                El módulo de conversaciones estará disponible en la próxima actualización.
-              </p>
-            </div>
+            <ConversationsList />
           </TabsContent>
           
           <TabsContent value="templates">
@@ -43,12 +40,7 @@ const MessagingPage: React.FC = () => {
           </TabsContent>
           
           <TabsContent value="config" className="space-y-4">
-            <div className="flex flex-col items-center justify-center h-[60vh] bg-muted/30 rounded-lg border border-dashed">
-              <h3 className="text-2xl font-semibold mb-2">Configuración de WhatsApp</h3>
-              <p className="text-muted-foreground mb-4 text-center max-w-md">
-                La configuración de la integración con WhatsApp estará disponible próximamente.
-              </p>
-            </div>
+            <WhatsappConfiguration />
           </TabsContent>
         </Tabs>
       </div>

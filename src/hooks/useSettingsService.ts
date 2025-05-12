@@ -1,7 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type SettingsRow = Database['public']['Tables']['settings']['Row'];
@@ -18,6 +18,7 @@ export type WebhookUrls = {
 
 export const useSettingsService = () => {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: settings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ['settings'],
@@ -80,30 +81,54 @@ export const useSettingsService = () => {
         throw new Error('URL de webhook no especificada');
       }
       
-      // Test payload
+      console.log(`Testing webhook: ${url} with event type: ${eventType}`);
+      
+      // Test payload with more comprehensive data
       const testPayload = {
         event: eventType,
         timestamp: new Date().toISOString(),
         test: true,
         data: {
-          id: 'test-id',
+          id: 'test-id-' + Math.random().toString(36).substring(2, 9),
           type: eventType,
-          description: 'Esto es una prueba de webhook'
+          description: 'Esto es una prueba de webhook',
+          caller: {
+            name: 'Cliente de Prueba',
+            phone: '+1234567890',
+            email: 'test@example.com'
+          },
+          call: {
+            duration: 120,
+            status: 'completed',
+            sentiment: 'positive'
+          },
+          agent: {
+            id: 'agent-test-id',
+            name: 'Agente Virtual'
+          },
+          contact: {
+            id: 'contact-test-id',
+            name: 'Cliente de Prueba',
+            company: 'Empresa de Prueba'
+          }
         }
       };
       
-      // Use no-cors mode to avoid CORS issues when testing
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        mode: 'no-cors',
-        body: JSON.stringify(testPayload)
+      // Send webhook test to Supabase Edge Function to avoid CORS issues
+      const { data, error } = await supabase.functions.invoke('send-webhook-test', {
+        body: {
+          url,
+          payload: testPayload
+        }
       });
       
-      // Since we're using no-cors, we can't check the actual response
-      // So we just assume it worked if no exception was thrown
+      if (error) {
+        console.error('Error testing webhook via edge function:', error);
+        throw error;
+      }
+
+      console.log('Webhook test response:', data);
+      
       toast({
         title: 'Webhook probado',
         description: 'Se ha enviado un evento de prueba al webhook'
@@ -114,7 +139,7 @@ export const useSettingsService = () => {
       console.error('Error testing webhook:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo probar el webhook',
+        description: 'No se pudo probar el webhook: ' + (error instanceof Error ? error.message : 'Error desconocido'),
         variant: 'destructive'
       });
       return false;
@@ -123,8 +148,16 @@ export const useSettingsService = () => {
 
   const testApiConnection = async () => {
     try {
-      // Simulate API test
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Test the actual API connection
+      const { data, error } = await supabase.functions.invoke('test-api-connection', {
+        body: { 
+          service: 'twilio',
+          settings: settings
+        }
+      });
+      
+      if (error) throw error;
+      
       toast({
         title: 'Conexión exitosa',
         description: 'Las claves API funcionan correctamente'
@@ -134,7 +167,7 @@ export const useSettingsService = () => {
       console.error('API connection test failed:', error);
       toast({
         title: 'Error de conexión',
-        description: 'No se pudo conectar con la API',
+        description: 'No se pudo conectar con la API. Verifique las credenciales.',
         variant: 'destructive'
       });
       return false;
@@ -143,7 +176,7 @@ export const useSettingsService = () => {
 
   const testTwilioConnection = async () => {
     try {
-      const { error } = await supabase.functions.invoke('make-call', {
+      const { data, error } = await supabase.functions.invoke('make-call', {
         body: { 
           phoneNumber: '+1234567890',  // Número de prueba
           test: true // Indicar que es una prueba
@@ -152,16 +185,20 @@ export const useSettingsService = () => {
       
       if (error) throw error;
       
-      toast({
-        title: 'Conexión a Twilio exitosa',
-        description: 'La configuración de Twilio es correcta'
-      });
-      return true;
+      if (data && data.success) {
+        toast({
+          title: 'Conexión a Twilio exitosa',
+          description: 'La configuración de Twilio es correcta'
+        });
+        return true;
+      } else {
+        throw new Error(data?.error || 'Error desconocido en la conexión a Twilio');
+      }
     } catch (error) {
       console.error('Twilio test failed:', error);
       toast({
         title: 'Error de conexión a Twilio',
-        description: 'No se pudo conectar con Twilio',
+        description: 'No se pudo conectar con Twilio: ' + (error instanceof Error ? error.message : 'Error desconocido'),
         variant: 'destructive'
       });
       return false;
