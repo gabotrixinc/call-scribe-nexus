@@ -317,6 +317,7 @@ export type Database = {
           updated_at: string
           verified: boolean | null
           verify_token: string | null
+          web_connected: boolean | null
           webhook_url: string | null
         }
         Insert: {
@@ -330,6 +331,7 @@ export type Database = {
           updated_at?: string
           verified?: boolean | null
           verify_token?: string | null
+          web_connected?: boolean | null
           webhook_url?: string | null
         }
         Update: {
@@ -343,6 +345,7 @@ export type Database = {
           updated_at?: string
           verified?: boolean | null
           verify_token?: string | null
+          web_connected?: boolean | null
           webhook_url?: string | null
         }
         Relationships: []
