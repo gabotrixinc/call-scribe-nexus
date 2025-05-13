@@ -53,7 +53,7 @@ const WhatsappQRScanner: React.FC = () => {
       setStatus('error');
       toast({
         title: 'Error',
-        description: 'No se pudo generar el código QR para WhatsApp Web',
+        description: 'No se pudo generar el código QR para WhatsApp Web. Por favor asegúrate de que el servicio de WhatsApp esté configurado.',
         variant: 'destructive',
       });
     }
@@ -84,16 +84,16 @@ const WhatsappQRScanner: React.FC = () => {
             title: 'Conexión exitosa',
             description: 'WhatsApp Web se ha conectado correctamente',
           });
+        } else if (data?.qrExpired === true) {
+          // QR code expired
+          setQrData(null);
+          clearInterval(id);
+          setPollingId(null);
           
-          // Save the connection status to database
-          await supabase
-            .from('whatsapp_config')
-            .upsert({
-              id: 'default',
-              verified: true,
-              updated_at: new Date().toISOString(),
-              web_connected: true
-            }, { onConflict: 'id' });
+          toast({
+            title: 'Código QR expirado',
+            description: 'El código QR ha expirado, genera uno nuevo para continuar',
+          });
         }
       } catch (err) {
         console.error('Error al verificar estado de conexión:', err);

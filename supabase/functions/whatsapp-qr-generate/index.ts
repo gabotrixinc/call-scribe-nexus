@@ -14,70 +14,68 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Recibiendo solicitud para generar QR de WhatsApp Web");
+    console.log('Generando código QR para WhatsApp Web');
     
-    // Esta es una simulación ya que no podemos implementar realmente WhatsApp Web
-    // en una aplicación externa debido a sus restricciones técnicas
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
     
-    // En un caso real, aquí se integraría con una biblioteca como whatsapp-web.js
-    // que permite la interacción programática con WhatsApp Web
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase configuration missing');
+    }
     
-    // Simulamos generación de un código QR
-    const simulateQRGeneration = async () => {
-      // Normalmente usaríamos una biblioteca como qrcode para generar esto
-      // Pero para simular, creamos una URL de QR que contiene un "mensaje" de WhatsApp
-      
-      // Utilizamos la API de QR Code Generator para crear un código QR de demostración
-      const qrData = "https://wa.me/?text=Este%20es%20un%20QR%20de%20simulaci%C3%B3n%20para%20WhatsApp%20Web";
-      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrData)}&size=200x200&format=png`;
-      
-      // Obtenemos la imagen QR
-      const qrResponse = await fetch(qrApiUrl);
-      if (!qrResponse.ok) {
-        throw new Error(`Error generando QR: ${qrResponse.status}`);
-      }
-      
-      // Convertimos a base64 para enviar al cliente
-      const qrBlob = await qrResponse.blob();
-      const buffer = await qrBlob.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
-      
-      return {
-        qr: base64,
-        expiration: Date.now() + 60000 // Expira en 60 segundos
-      };
-    };
+    // Proxy the request to the WhatsApp Web service
+    const whatsappServiceUrl = Deno.env.get('WHATSAPP_SERVICE_URL');
     
-    // Generamos QR
-    const qrData = await simulateQRGeneration();
+    if (!whatsappServiceUrl) {
+      throw new Error('WhatsApp service URL not configured');
+    }
     
-    // En una implementación real, almacenaríamos el estado de conexión
-    // en Supabase o en memoria para verificarlo posteriormente
+    // Call the external WhatsApp Web service
+    const response = await fetch(`${whatsappServiceUrl}/api/whatsapp-web`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('WHATSAPP_SERVICE_API_KEY') || ''}`
+      },
+      body: JSON.stringify({ action: 'get-qr' })
+    });
     
-    return new Response(
-      JSON.stringify({
-        success: true,
-        ...qrData
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error from WhatsApp service:', errorText);
+      throw new Error(`WhatsApp service responded with status: ${response.status} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('QR Code generado correctamente');
+    
+    // Store connection attempt in database
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    await supabase
+      .from('whatsapp_config')
+      .upsert({
+        id: 'default',
+        updated_at: new Date().toISOString(),
+        web_connected: false
+      }, { onConflict: 'id' });
+    
+    return new Response(JSON.stringify({
+      qr: data.qr,
+      expiration: data.expiration || (Date.now() + 60000) // Default 60 second expiration
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   } catch (error) {
-    console.error('Error generando QR de WhatsApp:', error);
+    console.error('Error en la generación del código QR:', error);
     
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });

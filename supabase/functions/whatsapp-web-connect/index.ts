@@ -14,14 +14,14 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Verificando estado de conexión de WhatsApp Web');
-    
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
     
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Supabase configuration missing');
     }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Proxy the request to the WhatsApp Web service
     const whatsappServiceUrl = Deno.env.get('WHATSAPP_SERVICE_URL');
@@ -30,14 +30,17 @@ serve(async (req) => {
       throw new Error('WhatsApp service URL not configured');
     }
     
-    // Call the external WhatsApp Web service to check connection status
+    const { action, data } = await req.json();
+    console.log(`Recibiendo solicitud para acción: ${action}`);
+    
+    // Forward the request to the external WhatsApp Web service
     const response = await fetch(`${whatsappServiceUrl}/api/whatsapp-web`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${Deno.env.get('WHATSAPP_SERVICE_API_KEY') || ''}`
       },
-      body: JSON.stringify({ action: 'check-status' })
+      body: JSON.stringify({ action, data })
     });
     
     if (!response.ok) {
@@ -46,33 +49,42 @@ serve(async (req) => {
       throw new Error(`WhatsApp service responded with status: ${response.status} - ${errorText}`);
     }
     
-    const data = await response.json();
-    console.log('Estado de conexión obtenido:', data);
+    const responseData = await response.json();
+    console.log('Respuesta del servicio de WhatsApp:', JSON.stringify(responseData, null, 2));
     
-    // Update database with connection status
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    if (data.connected === true) {
-      await supabase
-        .from('whatsapp_config')
-        .upsert({
-          id: 'default',
-          web_connected: true,
-          verified: true,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'id' });
+    // If we have QR code or connection status, update our database
+    if (action === 'get-qr' && responseData.qr) {
+      try {
+        await supabase
+          .from('whatsapp_config')
+          .upsert({
+            id: 'default',
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' });
+      } catch (error) {
+        console.error('Error updating QR in database:', error);
+      }
+    } else if (action === 'check-status' && responseData.connected === true) {
+      try {
+        await supabase
+          .from('whatsapp_config')
+          .upsert({
+            id: 'default',
+            web_connected: true,
+            verified: true,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' });
+      } catch (error) {
+        console.error('Error updating connection status in database:', error);
+      }
     }
     
-    return new Response(JSON.stringify({
-      connected: data.connected,
-      phoneNumber: data.phoneNumber,
-      qrExpired: data.qrExpired
-    }), {
+    return new Response(JSON.stringify(responseData), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   } catch (error) {
-    console.error('Error verificando estado de WhatsApp Web:', error);
+    console.error('Error en la función de WhatsApp Web:', error);
     
     return new Response(JSON.stringify({
       success: false,

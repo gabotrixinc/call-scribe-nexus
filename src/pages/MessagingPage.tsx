@@ -9,12 +9,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { WhatsappConversation } from '@/types/messaging';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from '@/components/ui/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 const MessagingPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('conversations');
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [webConnected, setWebConnected] = useState<boolean>(false);
   
-  const { data: conversations, isLoading, error } = useQuery({
+  const { data: conversations, isLoading, error, refetch } = useQuery({
     queryKey: ['whatsapp-conversations'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -26,6 +28,35 @@ const MessagingPage: React.FC = () => {
       return data as WhatsappConversation[];
     }
   });
+
+  // Fetching WhatsApp connection status
+  const { data: whatsappConfig } = useQuery({
+    queryKey: ['whatsapp-config'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('whatsapp_config')
+        .select('*')
+        .eq('id', 'default')
+        .single();
+      
+      if (error) {
+        // If no config exists, that's ok
+        if (error.code === 'PGRST116') {
+          return { web_connected: false };
+        }
+        console.error('Error fetching WhatsApp config:', error);
+        return { web_connected: false };
+      }
+      return data;
+    }
+  });
+  
+  // Update local state when config changes
+  useEffect(() => {
+    if (whatsappConfig) {
+      setWebConnected(whatsappConfig.web_connected === true);
+    }
+  }, [whatsappConfig]);
 
   useEffect(() => {
     if (error) {
@@ -40,6 +71,29 @@ const MessagingPage: React.FC = () => {
   const handleSelectConversation = (id: string) => {
     setSelectedConversationId(id);
   };
+
+  // Set up real-time subscription to WhatsApp config changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('whatsapp-config-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'whatsapp_config',
+        },
+        () => {
+          // Refetch the WhatsApp config when it changes
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
   
   return (
     <Layout>
@@ -48,6 +102,13 @@ const MessagingPage: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Mensajería</h1>
             <p className="text-muted-foreground">Gestiona tus conversaciones y plantillas de mensajería.</p>
+          </div>
+          <div>
+            {webConnected && (
+              <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-green-500">
+                WhatsApp Web Conectado
+              </Badge>
+            )}
           </div>
         </div>
         
