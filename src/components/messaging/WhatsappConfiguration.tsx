@@ -7,11 +7,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useToast } from '@/components/ui/use-toast';
-import { Info, Check, Loader2, X, ClipboardCopy, ExternalLink } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Info, Check, Loader2, X, ClipboardCopy, ExternalLink, QrCode } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import WhatsappQRScanner from './WhatsappQRScanner';
 
 const WhatsappConfiguration = () => {
   const [config, setConfig] = useState({
@@ -22,6 +23,7 @@ const WhatsappConfiguration = () => {
     displayName: '',
     businessDescription: '',
     webhookUrl: '',
+    webConnected: false,
   });
   const [verificationStatus, setVerificationStatus] = useState<'none' | 'pending' | 'verified' | 'failed'>('none');
   const [isLoading, setIsLoading] = useState(true);
@@ -52,6 +54,7 @@ const WhatsappConfiguration = () => {
             displayName: data.display_name || '',
             businessDescription: data.business_description || '',
             webhookUrl: data.webhook_url || webhookUrl,
+            webConnected: data.web_connected || false,
           });
 
           setVerificationStatus(data.verified ? 'verified' : 'none');
@@ -87,6 +90,7 @@ const WhatsappConfiguration = () => {
           business_description: config.businessDescription,
           webhook_url: webhookUrl,
           verified: verificationStatus === 'verified',
+          web_connected: config.webConnected,
         },
         { onConflict: 'id' }
       );
@@ -216,11 +220,16 @@ const WhatsappConfiguration = () => {
   }
 
   return (
-    <Tabs defaultValue="meta" className="space-y-4">
-      <TabsList className="grid grid-cols-2 w-full md:w-auto">
+    <Tabs defaultValue="qr" className="space-y-4">
+      <TabsList className="grid grid-cols-3 w-full md:w-auto">
+        <TabsTrigger value="qr">WhatsApp Web (QR)</TabsTrigger>
         <TabsTrigger value="meta">Conexión con Meta</TabsTrigger>
         <TabsTrigger value="manual">Configuración Manual</TabsTrigger>
       </TabsList>
+
+      <TabsContent value="qr">
+        <WhatsappQRScanner />
+      </TabsContent>
 
       <TabsContent value="meta">
         <Card>
