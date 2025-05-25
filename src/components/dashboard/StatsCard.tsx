@@ -24,42 +24,60 @@ const StatsCard: React.FC<StatsCardProps> = ({
   className
 }) => {
   return (
-    <Card className={cn(
-      "glass-card overflow-hidden transition-all duration-300 hover:shadow-glass-hover group neon-border animate-fade-in", 
+    <div className={cn(
+      "group relative overflow-hidden rounded-3xl bg-gradient-to-br from-white/10 via-white/5 to-transparent border border-white/20 backdrop-blur-2xl hover:border-purple-400/50 transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/20", 
       className
     )}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 glass-panel">
-        <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-          {title}
-        </CardTitle>
-        {icon && (
-          <div className="bg-gradient-to-br from-primary/20 to-purple-500/20 p-2 rounded-full backdrop-blur-sm border border-white/10 group-hover:scale-110 transition-transform duration-300 neon-glow">
-            {icon}
-          </div>
-        )}
-      </CardHeader>
-      <CardContent className="pt-4 relative">
-        <div className="text-2xl font-bold neo-gradient glow-text animate-glow group-hover:animate-text-glow">
-          {value}
-        </div>
-        {(description || trend) && (
-          <div className="flex items-center text-xs text-muted-foreground mt-2 group-hover:text-foreground/80 transition-colors">
+      {/* Animated background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/20 to-transparent rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      
+      <div className="relative p-6">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-gray-400 group-hover:text-gray-300 transition-colors">
+              {title}
+            </p>
             {trend && (
-              <span className={cn(
-                "mr-1 font-medium transition-all duration-300 group-hover:scale-110",
-                trend.positive ? "text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "text-red-400 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]"
-              )}>
-                {trend.positive ? "+" : ""}{trend.value}%
-              </span>
+              <div className="flex items-center space-x-1">
+                <span className={cn(
+                  "text-xs font-bold px-2 py-1 rounded-full",
+                  trend.positive 
+                    ? "text-emerald-400 bg-emerald-500/20" 
+                    : "text-red-400 bg-red-500/20"
+                )}>
+                  {trend.positive ? "+" : ""}{trend.value}%
+                </span>
+              </div>
             )}
-            {description && <p className="group-hover:text-foreground/90 transition-colors">{description}</p>}
           </div>
-        )}
+          
+          {icon && (
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-400/30 group-hover:scale-110 transition-transform duration-300">
+              <div className="text-purple-300 group-hover:text-purple-200 transition-colors">
+                {icon}
+              </div>
+            </div>
+          )}
+        </div>
         
-        {/* Animated background effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-lg"></div>
-      </CardContent>
-    </Card>
+        {/* Value */}
+        <div className="space-y-2">
+          <h3 className="text-3xl font-bold text-white group-hover:text-purple-200 transition-colors">
+            {value}
+          </h3>
+          {description && (
+            <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">
+              {description}
+            </p>
+          )}
+        </div>
+      </div>
+      
+      {/* Bottom accent line */}
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+    </div>
   );
 };
 
