@@ -9,9 +9,7 @@ import {
   PhoneCall,
   Users,
   MessageSquare,
-  User,
-  TrendingUp,
-  Activity
+  User
 } from 'lucide-react';
 import { useCallsService } from '@/hooks/useCallsService';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,6 +44,7 @@ const Dashboard: React.FC = () => {
       }
     };
     
+    // Cargar llamadas de hoy
     const fetchTodayCalls = async () => {
       try {
         const today = new Date();
@@ -69,6 +68,7 @@ const Dashboard: React.FC = () => {
       }
     };
     
+    // Calcular tiempo promedio de respuesta
     const calculateAvgResponseTime = () => {
       if (callMetrics && callMetrics.length > 0) {
         const responseTimeMetrics = callMetrics.filter(m => m.metric_type === 'response_time');
@@ -88,6 +88,7 @@ const Dashboard: React.FC = () => {
     fetchTodayCalls();
     calculateAvgResponseTime();
     
+    // Establecer intervalo para refrescar datos
     const interval = setInterval(() => {
       fetchAgents();
       fetchTodayCalls();
@@ -99,80 +100,49 @@ const Dashboard: React.FC = () => {
 
   return (
     <Layout>
-      <div className="space-y-8">
-        {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-purple-600/20 border border-purple-400/30 backdrop-blur-2xl p-8">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-purple-500/10"></div>
-          <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-purple-500/20 to-transparent rounded-full blur-3xl"></div>
-          
-          <div className="relative">
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-400/30">
-                <Activity className="h-8 w-8 text-purple-300" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold text-white">Dashboard</h1>
-                <p className="text-lg text-purple-200 mt-1">Monitoreo en tiempo real de tu centro de contacto</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-6 text-sm text-purple-200">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-green-400 animate-pulse"></div>
-                <span>Sistema operativo</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="h-4 w-4" />
-                <span>Rendimiento optimizado</span>
-              </div>
-            </div>
-          </div>
+      <div className="space-y-6">
+        <div className="glass-panel p-6 rounded-xl animate-fade-in mb-6">
+          <h1 className="text-3xl font-bold tracking-tight neo-gradient glow-text">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Overview of your contact center performance.</p>
         </div>
         
-        {/* Stats Grid */}
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard 
-            title="Llamadas Activas" 
+            title="Active Calls" 
             value={activeCalls?.length.toString() || "0"}
-            description="En progreso ahora"
-            icon={<PhoneCall className="h-5 w-5" />}
+            description="Current active calls"
+            icon={<PhoneCall className="h-4 w-4 text-primary" />}
             trend={{ value: activeCalls?.length > 10 ? 12 : 5, positive: true }}
           />
           <StatsCard 
-            title="Agentes Activos" 
+            title="Active Agents" 
             value={(agentsCount.human + agentsCount.ai).toString()}
-            description={`${agentsCount.human} humanos, ${agentsCount.ai} IA`}
-            icon={<Users className="h-5 w-5" />}
+            description={`${agentsCount.human} human, ${agentsCount.ai} AI agents`}
+            icon={<Users className="h-4 w-4 text-primary" />}
             trend={{ value: 5, positive: true }}
           />
           <StatsCard 
-            title="Tiempo de Respuesta" 
+            title="Avg. Response Time" 
             value={avgResponseTime}
-            description="Promedio últimas 100 llamadas"
-            icon={<MessageSquare className="h-5 w-5" />}
+            description="From last 100 calls"
+            icon={<MessageSquare className="h-4 w-4 text-primary" />}
             trend={{ value: 15, positive: true }}
           />
           <StatsCard 
-            title="Procesadas Hoy" 
+            title="Handled Today" 
             value={callsToday.toString()}
-            description="Llamadas completadas"
-            icon={<User className="h-5 w-5" />}
+            description="Calls processed today"
+            icon={<User className="h-4 w-4 text-primary" />}
             trend={{ value: 8, positive: true }}
           />
         </div>
         
-        {/* Charts Section */}
-        <div className="grid gap-8 grid-cols-1 xl:grid-cols-12">
-          <div className="xl:col-span-8">
-            <ActiveCallsChart />
-          </div>
-          <div className="xl:col-span-4">
-            <CallQualityChart />
-          </div>
+        <div className="grid gap-6 grid-cols-1 xl:grid-cols-12">
+          <ActiveCallsChart />
+          <CallQualityChart />
         </div>
         
-        {/* Active Calls List */}
-        <div className="rounded-3xl bg-gradient-to-br from-white/10 via-white/5 to-transparent border border-white/20 backdrop-blur-2xl p-6">
+        <div className="glass-card p-4 rounded-xl">
           <ActiveCallsList />
         </div>
       </div>
