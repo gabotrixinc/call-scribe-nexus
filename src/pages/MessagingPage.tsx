@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import TemplateManager from '@/components/messaging/TemplateManager';
@@ -33,22 +32,26 @@ const MessagingPage: React.FC = () => {
   const { data: whatsappConfig } = useQuery({
     queryKey: ['whatsapp-config'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('whatsapp_config')
-        .select('*')
-        .eq('id', 'default')
-        .single();
-      
-      if (error) {
-        // If no config exists, that's ok
-        if (error.code === 'PGRST116') {
+      try {
+        const { data, error } = await supabase
+          .from('whatsapp_config')
+          .select('*')
+          .eq('id', 'default')
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Error fetching WhatsApp config:', error);
           return { web_connected: false };
         }
-        console.error('Error fetching WhatsApp config:', error);
+        
+        // If no config exists, return default state
+        return data || { web_connected: false };
+      } catch (error) {
+        console.error('Error in WhatsApp config query:', error);
         return { web_connected: false };
       }
-      return data;
-    }
+    },
+    initialData: { web_connected: false }
   });
   
   // Update local state when config changes
